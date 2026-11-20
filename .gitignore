@@ -1,0 +1,54 @@
+# ============================================================================
+# Sistema Café — .gitignore
+# ============================================================================
+
+# Environment variables & secrets
+.env
+*.env.local
+*.env.production
+
+# Target & Build directories
+**/target/
+**/build/
+**/dist/
+**/out/
+
+# Node & Frontend
+**/node_modules/
+**/.npm/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Python & MCP
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.venv/
+**/venv/
+**/env/
+**/.pytest_cache/
+**/*.egg-info/
+
+# Playwright & Testing artifacts
+.playwright-mcp/
+test-results/
+playwright-report/
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+Thumbs.db
+
+# Logs & Temporary files
+*.log
+*.tmp
+*.bak
+
+# Temporary zip files and templates
+*.zip
+plantilla*

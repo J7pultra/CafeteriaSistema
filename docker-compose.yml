@@ -1,0 +1,242 @@
+services:
+  # ============================================================================
+  # 1. Relational Database (PostgreSQL 16)
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: coffee-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sistemacafe
+      POSTGRES_USER: coffeeuser
+      POSTGRES_PASSWORD: coffeepassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - coffee-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coffeeuser -d sistemacafe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 512M
+        reservations:
+          cpus: '0.20'
+          memory: 128M
+
+  # ============================================================================
+  # 2. Distributed In-Memory Cache (Redis 7.2)
+  # ============================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: coffee-redis
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis_data:/data
+    networks:
+      - coffee-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 64M
+
+  # ============================================================================
+  # 3. Enterprise Core Backend (Spring Boot 3.3.5 / Java 21) [Imagen 1 de 4]
+  # ============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: coffee-enterprise-backend:1.0.0
+    container_name: coffee-backend
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/sistemacafe
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - SPRING_DATASOURCE_USERNAME=coffeeuser
+      - SPRING_DATASOURCE_PASSWORD=coffeepassword
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - JWT_SECRET=${JWT_SECRET:-c2VjdXJlX2hlYXJ0X29mX2NvZmZlZV9lbnRlcnByaXNlXzUxMmtleV9zdXByZW1lXzIwMjY=}
+      - JWT_EXPIRATION_MS=86400000
+      - JWT_REFRESH_EXPIRATION_MS=604800000
+    volumes:
+      - backend_logs:/app/logs
+    networks:
+      - coffee-network
+    ports:
+      - "${BACKEND_PORT:-8088}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/v3/api-docs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============================================================================
+  # 4. MCP Server (Spring Boot 3.4 / Spring AI WebFlux SSE) [Imagen 2 de 4]
+  # ============================================================================
+  mcp-server:
+    build:
+      context: ./servidor_service_mcp
+      dockerfile: Dockerfile
+    image: coffee-mcp-server:1.0.0
+    container_name: coffee-mcp-server
+    restart: unless-stopped
+    environment:
+      - PORT_MCP=8001
+      - BACKEND_BASE_URL=http://backend:8080
+      - BACKEND_AUTH_USER=admin
+      - BACKEND_AUTH_PASS=admin123
+    networks:
+      - coffee-network
+    ports:
+      - "8001:8001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8001/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 512M
+        reservations:
+          cpus: '0.20'
+          memory: 128M
+
+  # ============================================================================
+  # 5. MCP Client (AI Chatbot Agent & Orquestador Multi-Rol) [Imagen 3 de 4]
+  # ============================================================================
+  mcp-client:
+    build:
+      context: ./cliente_service_mcp
+      dockerfile: Dockerfile
+    image: coffee-mcp-client:1.0.0
+    container_name: coffee-mcp-client
+    restart: unless-stopped
+    volumes:
+      - ./cliente_service_mcp/mcp_service:/app/mcp_service
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:8001
+      - BACKEND_API_BASE_URL=http://backend:8080/api/v1
+      - BACKEND_BASE_URL=http://backend:8080
+      - SERVER_NAME=coffee-enterprise-mcp-client
+      - ENVIRONMENT=production
+      - PORT=8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-lite-latest}
+    networks:
+      - coffee-network
+    ports:
+      - "8000:8000"
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 64M
+
+  # ============================================================================
+  # 6. Frontend & Nginx Gateway (React 19 / TypeScript / Nginx) [Imagen 4 de 4]
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: coffee-enterprise-frontend:1.0.0
+    container_name: coffee-frontend
+    restart: unless-stopped
+    networks:
+      - coffee-network
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      mcp-client:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          cpus: '0.10'
+          memory: 32M
+
+networks:
+  coffee-network:
+    driver: bridge
+    name: coffee_enterprise_network
+
+volumes:
+  postgres_data:
+    name: coffee_postgres_data
+  redis_data:
+    name: coffee_redis_data
+  backend_logs:
+    name: coffee_backend_logs
