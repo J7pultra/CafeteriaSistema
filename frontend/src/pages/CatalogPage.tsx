@@ -1,18 +1,30 @@
 import React, { useEffect, useState } from 'react'
 import { Plus, Search, Filter, Package, AlertCircle, Coffee, Trash2 } from 'lucide-react'
 import productService from '../services/productService'
-import { RoastBadge } from '../components/common/Badge'
+import { CategoryBadge } from '../components/common/Badge'
 import Modal from '../components/common/Modal'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import Alert from '../components/common/Alert'
-import type { Product, ProductCategory, RoastLevel, ProductRequest } from '../types'
+import { useAuth } from '../context/AuthContext'
+import type { Product, ProductCategory, ProductRequest } from '../types'
+
+const CATEGORY_OPTIONS: { value: ProductCategory; label: string }[] = [
+  { value: 'HOT_BEVERAGES', label: 'Bebidas Calientes' },
+  { value: 'COLD_BEVERAGES', label: 'Bebidas Frías' },
+  { value: 'BAKERY', label: 'Repostería' },
+  { value: 'BREAKFAST', label: 'Desayunos' },
+  { value: 'SNACKS', label: 'Snacks' },
+  { value: 'OTHER', label: 'Otros' },
+]
 
 export const CatalogPage: React.FC = () => {
+  const { hasRole } = useAuth()
+  const isAdmin = hasRole('ROLE_ADMIN')
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
-  const [roastFilter, setRoastFilter] = useState<string>('ALL')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -27,12 +39,11 @@ export const CatalogPage: React.FC = () => {
     sku: '',
     name: '',
     description: '',
-    origin: '',
     imageUrl: '',
-    roastLevel: 'MEDIUM',
-    category: 'SPECIALTY_BEANS',
-    price: 18.0,
-    stockQuantity: 50,
+    category: 'HOT_BEVERAGES',
+    price: 3.5,
+    unitPrice: 3.5,
+    stockQuantity: 25,
     active: true,
   })
 
@@ -43,7 +54,7 @@ export const CatalogPage: React.FC = () => {
       const res = await productService.getProducts(0, 100)
       setProducts(res?.content ?? [])
     } catch {
-      setError('No se pudo conectar con el catálogo de café. Verifica la conexión con el backend.')
+      setError('No se pudo conectar con el catálogo de productos. Verifica la conexión con el backend.')
       setProducts([])
     } finally {
       setLoading(false)
@@ -56,26 +67,27 @@ export const CatalogPage: React.FC = () => {
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isAdmin) return
     setError(null)
     try {
       const payload: ProductRequest = {
         ...formData,
         unitPrice: formData.price,
+        stockQuantity: Number(formData.stockQuantity),
       }
       const created = await productService.createProduct(payload)
       setProducts((prev) => [created, ...prev])
-      setSuccess(`Lote ${created.name} (${created.sku}) creado exitosamente.`)
+      setSuccess(`Producto ${created.name} (${created.sku}) registrado exitosamente.`)
       setIsCreateOpen(false)
       setFormData({
         sku: '',
         name: '',
         description: '',
-        origin: '',
         imageUrl: '',
-        roastLevel: 'MEDIUM',
-        category: 'SPECIALTY_BEANS',
-        price: 18.0,
-        stockQuantity: 50,
+        category: 'HOT_BEVERAGES',
+        price: 3.5,
+        unitPrice: 3.5,
+        stockQuantity: 25,
         active: true,
       })
     } catch (err: any) {
@@ -85,13 +97,14 @@ export const CatalogPage: React.FC = () => {
   }
 
   const handleDeleteProduct = async (id: number, name: string) => {
-    if (!window.confirm(`¿Estás seguro de que deseas desactivar el lote "${name}"?`)) return
+    if (!isAdmin) return
+    if (!window.confirm(`¿Estás seguro de que deseas desactivar el producto "${name}"?`)) return
     try {
       await productService.deleteProduct(id)
       setProducts((prev) => prev.filter((p) => p.id !== id))
-      setSuccess(`Lote "${name}" desactivado con éxito.`)
+      setSuccess(`Producto "${name}" desactivado con éxito.`)
     } catch {
-      setError('Error al desactivar el lote de café.')
+      setError('Error al desactivar el producto.')
     }
   }
 
@@ -100,7 +113,6 @@ export const CatalogPage: React.FC = () => {
     setError(null)
     try {
       await productService.updateStock(selectedProduct.id, stockToAdd).catch(() => {
-        // Fallback local update
         return {
           ...selectedProduct,
           stockQuantity: selectedProduct.stockQuantity + stockToAdd,
@@ -113,7 +125,7 @@ export const CatalogPage: React.FC = () => {
             : p
         )
       )
-      setSuccess(`Stock actualizado: +${stockToAdd} kg para ${selectedProduct.name}.`)
+      setSuccess(`Stock actualizado: +${stockToAdd} unidades para ${selectedProduct.name}.`)
       setIsStockOpen(false)
     } catch {
       setError('Error al actualizar el stock.')
@@ -126,31 +138,34 @@ export const CatalogPage: React.FC = () => {
     const matchesSearch =
       (p.name?.toLowerCase() || '').includes(term) ||
       (p.sku?.toLowerCase() || '').includes(term) ||
-      (p.origin?.toLowerCase() || '').includes(term)
+      (p.description?.toLowerCase() || '').includes(term)
     const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter
-    const matchesRoast = roastFilter === 'ALL' || p.roastLevel === roastFilter
-    return matchesSearch && matchesCategory && matchesRoast
+    return matchesSearch && matchesCategory
   })
 
-  if (loading) return <LoadingSpinner label="Cargando catálogo de granos de café..." />
+  if (loading) return <LoadingSpinner label="Cargando productos de cafetería..." />
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Lotes de Café & Inventario</h1>
+          <h1 className="page-title">{isAdmin ? 'Productos' : 'Disponibilidad'}</h1>
           <p className="page-desc">
-            Trazabilidad de origen, altitud, perfiles de cata y control de existencias.
+            {isAdmin
+              ? 'Gestión de catálogo, precios unitarios y existencias de cafetería.'
+              : 'Consulta de existencias y disponibilidad en barra en tiempo real.'}
           </p>
         </div>
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="btn btn-primary"
-          data-testid="add-product-btn"
-        >
-          <Plus size={18} />
-          Nuevo Lote de Café
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="btn btn-primary"
+            data-testid="add-product-btn"
+          >
+            <Plus size={18} />
+            Nuevo Producto
+          </button>
+        )}
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
@@ -179,9 +194,8 @@ export const CatalogPage: React.FC = () => {
           <input
             type="text"
             className="form-input"
-            data-sommelier-id="catalog-search-input"
             style={{ paddingLeft: '40px', width: '100%' }}
-            placeholder="Buscar por variedad, origen o SKU (ej. Huila, COF-COL)..."
+            placeholder="Buscar por nombre, SKU o descripción..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -195,23 +209,11 @@ export const CatalogPage: React.FC = () => {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option value="ALL">Todas las Categorías</option>
-            <option value="SPECIALTY_BEANS">Especialidad (Specialty)</option>
-            <option value="ESPRESSO_SINGLE_ORIGIN">Origen Único (Single Origin)</option>
-            <option value="COLD_BREW_BLEND">Mezcla / Cold Brew</option>
-            <option value="DECAF_ORGANIC">Descafeinado Orgánico</option>
-          </select>
-
-          <select
-            className="form-select"
-            value={roastFilter}
-            onChange={(e) => setRoastFilter(e.target.value)}
-          >
-            <option value="ALL">Todos los Tuestes</option>
-            <option value="LIGHT">Claro (Light)</option>
-            <option value="MEDIUM_LIGHT">Medio Claro</option>
-            <option value="MEDIUM">Medio (Medium)</option>
-            <option value="MEDIUM_DARK">Medio Oscuro</option>
-            <option value="DARK">Oscuro (Dark)</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -221,14 +223,16 @@ export const CatalogPage: React.FC = () => {
         {filteredProducts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
             <Coffee size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
-            <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay lotes de café registrados</h3>
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay productos registrados</h3>
             <p style={{ color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px', fontSize: '0.9rem' }}>
-              El catálogo está listo para producción. Registra el primer lote con información real de origen y control de inventario.
+              El catálogo está listo para producción. {isAdmin ? 'Crea el primer producto real de cafetería.' : 'Espera a que el administrador registre productos.'}
             </p>
-            <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
-              <Plus size={16} />
-              Registrar Primer Lote
-            </button>
+            {isAdmin && (
+              <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
+                <Plus size={16} />
+                Registrar Primer Producto
+              </button>
+            )}
           </div>
         ) : (
           <div className="table-responsive">
@@ -237,22 +241,22 @@ export const CatalogPage: React.FC = () => {
                 <tr>
                   <th style={{ width: '60px' }}>Foto</th>
                   <th>SKU</th>
-                  <th>Variedad / Nombre</th>
-                  <th>Origen</th>
-                  <th>Tueste</th>
-                  <th>Precio / kg</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Precio Unitario</th>
                   <th>Stock</th>
+                  <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.map((p) => {
-                  const isCritical = p.stockQuantity < 10
+                  const isCritical = p.stockQuantity <= 10
                   const thumb =
                     p.imageUrl ||
-                    'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=120&auto=format&fit=crop&q=80'
+                    'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&auto=format&fit=crop&q=80'
                   return (
-                    <tr key={p.id} data-sommelier-id={`product-card-${p.id}`}>
+                    <tr key={p.id}>
                       <td>
                         <img
                           src={thumb}
@@ -275,9 +279,8 @@ export const CatalogPage: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td>{p.origin || 'N/A'}</td>
                       <td>
-                        <RoastBadge roast={p.roastLevel} />
+                        <CategoryBadge category={p.category} />
                       </td>
                       <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                         ${Number(p.unitPrice ?? p.price ?? 0).toFixed(2)}
@@ -290,14 +293,21 @@ export const CatalogPage: React.FC = () => {
                               color: isCritical ? 'var(--accent-red)' : 'var(--accent-green)',
                             }}
                           >
-                            {p.stockQuantity} kg
+                            {p.stockQuantity} uds
                           </span>
                           {isCritical && (
-                            <span title="Stock crítico">
+                            <span title="Stock bajo">
                               <AlertCircle size={16} color="var(--accent-red)" />
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td>
+                        {p.active ? (
+                          <span className="badge badge-green">Disponible</span>
+                        ) : (
+                          <span className="badge badge-red">Inactivo</span>
+                        )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -313,14 +323,16 @@ export const CatalogPage: React.FC = () => {
                             <Package size={14} />
                             Reabastecer
                           </button>
-                          <button
-                            onClick={() => handleDeleteProduct(p.id, p.name)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ color: 'var(--accent-red)' }}
-                            title="Desactivar producto"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDeleteProduct(p.id, p.name)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ color: 'var(--accent-red)' }}
+                              title="Desactivar producto"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -332,253 +344,176 @@ export const CatalogPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal: Add New Coffee Product */}
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Registrar Nuevo Lote de Café"
-      >
-        <form onSubmit={handleCreateProduct}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="form-group">
-              <label className="form-label">SKU</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="ej. COF-CRI-TAR"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Nombre del Lote / Variedad</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="ej. Café Costa Rica Tarrazú"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Origen / Región</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="ej. Tarrazú, Costa Rica"
-              value={formData.origin}
-              onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="form-group">
-              <label className="form-label">Nivel de Tueste</label>
-              <select
-                className="form-select"
-                value={formData.roastLevel}
-                onChange={(e) =>
-                  setFormData({ ...formData, roastLevel: e.target.value as RoastLevel })
-                }
-              >
-                <option value="LIGHT">Claro (Light)</option>
-                <option value="MEDIUM_LIGHT">Medio Claro</option>
-                <option value="MEDIUM">Medio (Medium)</option>
-                <option value="MEDIUM_DARK">Medio Oscuro</option>
-                <option value="DARK">Oscuro (Dark)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Categoría</label>
-              <select
-                className="form-select"
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value as ProductCategory })
-                }
-              >
-                <option value="SPECIALTY_BEANS">Especialidad (Specialty)</option>
-                <option value="ESPRESSO_SINGLE_ORIGIN">Origen Único (Single Origin)</option>
-                <option value="COLD_BREW_BLEND">Mezcla / Cold Brew</option>
-                <option value="DECAF_ORGANIC">Descafeinado Orgánico</option>
-                <option value="BARISTA_EQUIPMENT">Equipamiento Barista</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="form-group">
-              <label className="form-label">Precio por kg ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                className="form-input"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Stock Inicial (kg)</label>
-              <input
-                type="number"
-                className="form-input"
-                value={formData.stockQuantity}
-                onChange={(e) =>
-                  setFormData({ ...formData, stockQuantity: parseInt(e.target.value, 10) })
-                }
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">URL de Fotografía / Miniatura</label>
-            <input
-              type="url"
-              className="form-input"
-              placeholder="https://images.unsplash.com/..."
-              value={formData.imageUrl || ''}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fotos recomendadas:</span>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '2px 8px' }}
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    imageUrl:
-                      'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=500&auto=format&fit=crop&q=80',
-                  })
-                }
-              >
-                Granos Huila
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '2px 8px' }}
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    imageUrl:
-                      'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=80',
-                  })
-                }
-              >
-                Tueste Claro
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem', padding: '2px 8px' }}
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    imageUrl:
-                      'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=80',
-                  })
-                }
-              >
-                Espresso Dark
-              </button>
-            </div>
-            {formData.imageUrl && (
-              <div style={{ marginTop: '8px' }}>
-                <img
-                  src={formData.imageUrl}
-                  alt="Vista previa"
-                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+      {/* Modal: Add New Cafeteria Product */}
+      {isAdmin && (
+        <Modal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          title="Nuevo Producto"
+        >
+          <form onSubmit={handleCreateProduct}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">SKU (Opcional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="ej. BEB-001"
+                  value={formData.sku || ''}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 />
               </div>
-            )}
-          </div>
+              <div className="form-group">
+                <label className="form-label">Nombre del Producto</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="ej. Cappuccino Tradicional"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Notas de Cata / Descripción</label>
-            <textarea
-              className="form-textarea"
-              rows={3}
-              placeholder="Perfil sensorial, proceso de beneficio, altitud..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Categoría</label>
+                <select
+                  className="form-select"
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData({ ...formData, category: e.target.value as ProductCategory })
+                  }
+                >
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="btn btn-secondary"
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Guardar Lote
-            </button>
-          </div>
-        </form>
-      </Modal>
+              <div className="form-group">
+                <label className="form-label">Precio Unitario ($ USD)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="form-input"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+            </div>
 
-      {/* Modal: Quick Restock */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Stock Inicial (Unidades)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="form-input"
+                  value={formData.stockQuantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', paddingTop: '28px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.active}
+                    onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                    style={{ width: '18px', height: '18px', accentColor: 'var(--accent-gold)' }}
+                  />
+                  Producto Disponible para Venta
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Descripción</label>
+              <textarea
+                className="form-textarea"
+                rows={2}
+                placeholder="Descripción del producto para el menú..."
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">URL de Imagen (Opcional)</label>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://..."
+                value={formData.imageUrl || ''}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              />
+              {formData.imageUrl && (
+                <div style={{ marginTop: '8px' }}>
+                  <img
+                    src={formData.imageUrl}
+                    alt="Vista previa"
+                    style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(false)}
+                className="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Guardar Producto
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal: Reabastecer Stock */}
       <Modal
         isOpen={isStockOpen}
         onClose={() => setIsStockOpen(false)}
-        title={`Reabastecer: ${selectedProduct?.name || ''}`}
+        title={`Reabastecer: ${selectedProduct?.name}`}
       >
-        <div>
+        <div style={{ padding: '8px 0' }}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
-            Stock actual:{' '}
-            <strong style={{ color: 'var(--accent-gold)' }}>
-              {selectedProduct?.stockQuantity} kg
-            </strong>
+            Stock actual: <strong style={{ color: 'var(--text-primary)' }}>{selectedProduct?.stockQuantity} uds</strong>.
+            Ingresa la cantidad de unidades que deseas ingresar al inventario:
           </p>
 
           <div className="form-group">
-            <label className="form-label">Cantidad a añadir (kg)</label>
+            <label className="form-label">Unidades a Ingresar</label>
             <input
               type="number"
+              min="1"
+              step="1"
               className="form-input"
               value={stockToAdd}
-              min="1"
-              onChange={(e) => setStockToAdd(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setStockToAdd(parseInt(e.target.value, 10) || 1)}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-            {[5, 10, 25, 50].map((qty) => (
-              <button
-                key={qty}
-                type="button"
-                onClick={() => setStockToAdd(qty)}
-                className="btn btn-secondary btn-sm"
-              >
-                +{qty} kg
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setIsStockOpen(false)}
-              className="btn btn-secondary"
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+            <button onClick={() => setIsStockOpen(false)} className="btn btn-secondary">
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={handleUpdateStock}
-              className="btn btn-primary"
-            >
-              Confirmar Reabastecimiento
+            <button onClick={handleUpdateStock} className="btn btn-primary">
+              Confirmar Ingreso
             </button>
           </div>
         </div>

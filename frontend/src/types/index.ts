@@ -26,18 +26,24 @@ export interface AuthResponse {
   roles: string[]
 }
 
-// Product Types - Resilient to backend English and Spanish enums
+// Product Types - Cafeteria Domain
 export type ProductCategory =
+  | 'HOT_BEVERAGES'
+  | 'COLD_BEVERAGES'
+  | 'BAKERY'
+  | 'BREAKFAST'
+  | 'SNACKS'
+  | 'OTHER'
+  | 'BEBIDAS_CALIENTES'
+  | 'BEBIDAS_FRIAS'
+  | 'REPOSTERIA'
+  | 'DESAYUNOS'
+  | 'OTROS'
   | 'SPECIALTY_BEANS'
   | 'ESPRESSO_SINGLE_ORIGIN'
   | 'COLD_BREW_BLEND'
   | 'DECAF_ORGANIC'
   | 'BARISTA_EQUIPMENT'
-  | 'ESPECIALIDAD'
-  | 'ORIGEN_UNICO'
-  | 'MEZCLA'
-  | 'DESCAFEINADO'
-  | 'ACCESORIOS'
 
 export type RoastLevel =
   | 'LIGHT'
@@ -56,32 +62,34 @@ export interface Product {
   sku: string
   name: string
   description?: string
+  category: ProductCategory
+  price?: number
+  unitPrice?: number
+  stockQuantity: number
+  imageUrl?: string
+  active: boolean
+  lowStock?: boolean
+  createdAt?: string
+  updatedAt?: string
   origin?: string
   altitudeMasl?: number
   processMethod?: string
-  roastLevel: RoastLevel
+  roastLevel?: RoastLevel
   flavorNotes?: string
-  imageUrl?: string
-  category: ProductCategory
-  price?: number
-  unitPrice?: number
-  stockQuantity: number
-  active: boolean
-  lowStock?: boolean
 }
 
 export interface ProductRequest {
-  sku: string
+  sku?: string
   name: string
-  description?: string
-  origin?: string
-  roastLevel: RoastLevel
-  imageUrl?: string
   category: ProductCategory
   unitPrice?: number
   price?: number
   stockQuantity: number
+  description?: string
+  imageUrl?: string
   active: boolean
+  origin?: string
+  roastLevel?: RoastLevel
 }
 
 // Customer Types
@@ -146,6 +154,8 @@ export interface Order {
   discount: number
   tax: number
   total: number
+  totalAmount?: number
+  loyaltyPointsEarned?: number
   notes?: string
   createdAt: string
 }
@@ -201,14 +211,27 @@ export interface SimulatedInvoice {
 }
 
 // Dashboard Analytics Types
+export interface TopProduct {
+  productId: number
+  name: string
+  unitsSold: number
+  revenue: number
+}
+
 export interface DashboardMetrics {
   totalOrders: number
   totalRevenue: number
+  totalRevenueWeek?: number
+  totalOrdersWeek?: number
   activeOrders: number
   lowStockCount: number
   weeklyNewCustomers: number
+  totalCustomers?: number
+  ordersByStatus?: Record<string, number>
   customersByTier: Record<CustomerTier, number>
-  salesByRoastLevel: Record<string, number>
+  salesByCategory?: Record<string, number>
+  topSellingProducts?: TopProduct[]
+  salesByRoastLevel?: Record<string, number>
 }
 
 // Coffee Skills Types

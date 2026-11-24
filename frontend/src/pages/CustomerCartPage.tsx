@@ -11,7 +11,6 @@ import {
   Building,
   Banknote,
   Coffee,
-  Sparkles,
   ShieldCheck,
   ChevronLeft,
 } from 'lucide-react'
@@ -93,7 +92,7 @@ export const CustomerCartPage: React.FC = () => {
   }, 0)
   const discountAmount = subtotal * discountRate
   const taxableAmount = subtotal - discountAmount
-  const taxAmount = taxableAmount * 0.1 // 10% IVA
+  const taxAmount = taxableAmount * 0.12 // 12% IVA
   const grandTotal = taxableAmount + taxAmount
   const pointsToEarn = Math.floor(grandTotal)
 
@@ -184,7 +183,7 @@ export const CustomerCartPage: React.FC = () => {
             ¡Pedido Confirmado con Éxito!
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginBottom: '24px' }}>
-            Tu orden de café de especialidad ha sido enviada a nuestra barra de tueste y calibración.
+            Tu pedido ha sido registrado y enviado para su preparación inmediata.
           </p>
 
           <div
@@ -214,7 +213,9 @@ export const CustomerCartPage: React.FC = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Puntos Acumulados:</span>
-              <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>+{pointsToEarn} Puntos</span>
+              <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>
+                +{completedOrder.loyaltyPointsEarned != null ? completedOrder.loyaltyPointsEarned : Math.floor(Number(completedOrder.total ?? completedOrder.totalAmount ?? 0))} Puntos
+              </span>
             </div>
           </div>
 
@@ -224,7 +225,7 @@ export const CustomerCartPage: React.FC = () => {
               <ArrowRight size={16} />
             </Link>
             <Link to="/store" className="btn btn-secondary">
-              Seguir Explorando Granos
+              Volver al Menú
             </Link>
           </div>
         </div>
@@ -261,10 +262,10 @@ export const CustomerCartPage: React.FC = () => {
             <ShoppingBag size={40} />
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '8px' }}>
-            Tu Carrito de Café está Vacío
+            Tu Carrito está Vacío
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px', maxWidth: '420px', margin: '0 auto 28px' }}>
-            Aún no has seleccionado granos de especialidad. Explora nuestra tostaduría artesanal y elige tu café favorito.
+            Aún no has seleccionado productos de nuestra cafetería. Explora nuestro menú y elige tus favoritos.
           </p>
           <Link
             to="/store"
@@ -272,7 +273,7 @@ export const CustomerCartPage: React.FC = () => {
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px' }}
           >
             <Coffee size={18} />
-            <span>Explorar Cafés de Origen</span>
+            <span>Explorar Menú</span>
           </Link>
         </div>
       </div>
@@ -296,7 +297,7 @@ export const CustomerCartPage: React.FC = () => {
             Mi Carrito de Compras
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Revisa tus granos seleccionados, aplica descuentos de membresía y factura tu orden.
+            Revisa tus productos seleccionados y confirma tu orden.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', fontSize: '0.9rem', fontWeight: 600 }}>
@@ -373,10 +374,10 @@ export const CustomerCartPage: React.FC = () => {
                         {item.product.name}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                        {item.product.origin || 'Origen de la Casa'} • Tueste {item.product.roastLevel || 'Medio'}
+                        SKU: {item.product.sku}
                       </div>
                       <div style={{ fontSize: '0.82rem', color: 'var(--accent-gold)', fontWeight: 600 }}>
-                        ${price.toFixed(2)} / kg
+                        ${price.toFixed(2)} c/u
                       </div>
                     </div>
 
@@ -454,7 +455,7 @@ export const CustomerCartPage: React.FC = () => {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>IVA (10%):</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>IVA (12%):</span>
               <span style={{ fontWeight: 600 }}>${taxAmount.toFixed(2)} USD</span>
             </div>
 
@@ -489,7 +490,7 @@ export const CustomerCartPage: React.FC = () => {
                 gap: '6px',
               }}
             >
-              <Sparkles size={14} />
+              <ShieldCheck size={14} />
               <span>Acumularás <strong>+{pointsToEarn} puntos</strong> en tu cuenta</span>
             </div>
           </div>
@@ -581,7 +582,7 @@ export const CustomerCartPage: React.FC = () => {
                   value={billingInfo.notes}
                   onChange={(e) => setBillingInfo({ ...billingInfo, notes: e.target.value })}
                   className="form-control"
-                  placeholder="Ej: Molienda media para Chemex, empaque sellado..."
+                  placeholder="Ej: Sin azúcar, leche deslactosada, servir caliente, entregar en mesa 4..."
                   style={{ width: '100%', resize: 'none' }}
                 />
               </div>

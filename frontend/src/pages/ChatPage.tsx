@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Sparkles,
   Send,
   Coffee,
   ShieldAlert,
@@ -26,39 +25,37 @@ export const ChatPage: React.FC = () => {
 
   const roleConfig = isAdmin
     ? {
-      title: 'Asistente de Operaciones & Gestión',
-      subtitle: 'Supervisión de catálogo, lotes de café y órdenes en tiempo real',
-      welcome: `¡Hola ${user?.username || 'Administrador'}! 📊 Soy tu asistente de operaciones. Puedo reportarte el estado de inventario, consultar cuántos productos hay registrados o registrar nuevos lotes de café en el sistema. ¿Qué consulta deseas realizar?`,
+      title: 'Asistente de Operaciones',
+      subtitle: 'Supervisión de catálogo, existencias y pedidos de cafetería en tiempo real',
+      welcome: `Hola ${user?.username || 'Administrador'}. Soy el asistente de operaciones de Sistema Café. Puedo reportarte el estado de inventario, consultar productos registrados o revisar pedidos. ¿En qué te colaboro hoy?`,
       suggestions: [
-        '☕ ¿Cuántos productos tienen registrados?',
-        '📝 Agrega un café americano',
-        '📦 Reporte de stock crítico',
-        '📊 Resumen global de inventario',
+        '¿Cuántos productos tienen registrados?',
+        'Reporte de productos con stock bajo',
+        'Resumen de ventas y pedidos',
+        'Consultar disponibilidad de cafetería',
       ],
     }
     : isBarista
       ? {
-        title: 'Copiloto Técnico de Barra',
-        subtitle: 'Recetas de extracción, ratios y registro ágil de nuevas bebidas',
-        welcome: `¡Hola ${user?.username || 'Barista'}! ☕ Estoy a tu disposición en la barra. Puedo guiarte con recetas de extracción (V60, Chemex, Aeropress, Espresso), consultar la disponibilidad de granos o registrar nuevas bebidas al instante en el sistema (por ejemplo, diciendo "agrega un café americano" o "agrega un café con leche"). ¿En qué te colaboro hoy?`,
+        title: 'Asistente de Barra',
+        subtitle: 'Consulta de disponibilidad de productos y comandas en tiempo real',
+        welcome: `Hola ${user?.username || 'Barista'}. Estoy a tu disposición para consultar pedidos en preparación o disponibilidad de insumos en la cafetería. ¿Qué consulta deseas realizar?`,
         suggestions: [
-          '☕ ¿Qué cafés hay en el catálogo?',
-          '📝 Agrega un café americano',
-          '🥛 Agrega un café con leche',
-          '🌿 Agrega un café descafeinado',
-          '⏱️ Receta para V60 18g tueste medio',
-          '📦 Consulta el stock de bodega',
+          '¿Qué productos hay en el catálogo?',
+          'Pedidos en preparación',
+          'Consultar stock de bebidas',
+          'Ver pedidos pendientes',
         ],
       }
       : {
-        title: 'Sommelier & Asistente de Café',
-        subtitle: 'Recomendaciones sensoriales, notas de cata y pedidos',
-        welcome: `¡Hola ${user?.username || ''}! ☕ Bienvenido a nuestra tostaduría de especialidad. Soy tu sommelier de café. Cuéntame qué notas de sabor prefieres (frutal, floral, chocolate) o para qué método buscas café, y te guiaré con gusto.`,
+        title: 'Soporte y Atención',
+        subtitle: 'Consulta de menú, recomendaciones y estado de tus pedidos',
+        welcome: `Hola ${user?.username || ''}. Bienvenido a Sistema Café. Puedo ayudarte con información sobre nuestro menú de bebidas calientes, frías y repostería artesanal.`,
         suggestions: [
-          '☕ ¿Cuántos cafés tienen disponibles?',
-          '🍫 Busco un café con notas a chocolate y caramelo',
-          '🌸 Recomiéndame un café floral o cítrico',
-          '⏱️ ¿Cómo preparar café en V60?',
+          '¿Qué bebidas calientes tienen disponibles?',
+          'Opciones de repostería artesanal',
+          'Consultar el estado de mi pedido',
+          'Beneficios de lealtad',
         ],
       }
 
@@ -323,7 +320,7 @@ export const ChatPage: React.FC = () => {
                   <>
                     <Coffee size={12} color="var(--accent-gold)" />
                     <span style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>
-                      Barista Virtual AI
+                      Asistente
                     </span>
                   </>
                 )}
@@ -465,8 +462,8 @@ export const ChatPage: React.FC = () => {
               padding: '10px',
             }}
           >
-            <Sparkles size={16} color="var(--accent-gold)" className="animate-spin" />
-            <span>Consultando herramientas y preparando respuesta sensorial...</span>
+            <Coffee size={16} color="var(--accent-gold)" className="animate-spin" />
+            <span>Consultando información...</span>
           </div>
         )}
 
@@ -494,7 +491,7 @@ export const ChatPage: React.FC = () => {
             fontSize: '0.95rem',
             backgroundColor: 'var(--bg-card)',
           }}
-          placeholder="Escribe tu consulta al barista (ej. 'recomiéndame un café con notas a caramelo')..."
+          placeholder="Escribe tu consulta (ej. 'cuántos productos hay registrados')..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}

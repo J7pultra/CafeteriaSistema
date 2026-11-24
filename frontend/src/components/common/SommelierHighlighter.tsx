@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Sparkles, X } from 'lucide-react'
+import { Navigation, X } from 'lucide-react'
 
 interface HighlightDetail {
   targetId: string
@@ -37,7 +37,7 @@ export const SommelierHighlighter: React.FC = () => {
     x: -100,
     y: -100,
     visible: false,
-    label: 'Sommelier AI ✨',
+    label: 'Asistente',
   })
 
   const [isTyping, setIsTyping] = useState(false)
@@ -136,7 +136,7 @@ export const SommelierHighlighter: React.FC = () => {
           x: destX,
           y: destY,
           visible: true,
-          label: customEvent.detail?.label || 'Sommelier AI ✨',
+          label: customEvent.detail?.label || 'Asistente',
         })
 
         if (cursorTimerRef.current) clearTimeout(cursorTimerRef.current)
@@ -210,7 +210,7 @@ export const SommelierHighlighter: React.FC = () => {
             whiteSpace: 'nowrap',
           }}
         >
-          <Sparkles size={11} />
+          <Navigation size={10} />
           <span>{cursor.label}</span>
         </div>
       </div>
@@ -240,8 +240,8 @@ export const SommelierHighlighter: React.FC = () => {
             pointerEvents: 'none',
           }}
         >
-          <Sparkles size={14} className="animate-spin" />
-          <span>Sommelier AI está filtrando el catálogo...</span>
+          <Navigation size={14} className="animate-pulse" />
+          <span>Actualizando visualización del catálogo...</span>
         </div>
       )}
 
@@ -294,8 +294,8 @@ export const SommelierHighlighter: React.FC = () => {
               isVisibleRef.current = false
             }}
           >
-            <Sparkles size={12} />
-            <span>{spotlight.badgeText || '¡Selección Sommelier AI!'}</span>
+            <Navigation size={11} />
+            <span>{spotlight.badgeText || 'Recomendación'}</span>
             <X size={12} style={{ marginLeft: '2px', opacity: 0.7 }} />
           </div>
         )}

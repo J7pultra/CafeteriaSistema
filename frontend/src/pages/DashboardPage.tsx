@@ -12,10 +12,24 @@ import {
 import StatCard from '../components/common/StatCard'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import Alert from '../components/common/Alert'
-import { RoastBadge, TierBadge } from '../components/common/Badge'
+import { TierBadge, CategoryBadge } from '../components/common/Badge'
 import dashboardService from '../services/dashboardService'
 import productService from '../services/productService'
-import type { DashboardMetrics, Product, CustomerTier, RoastLevel } from '../types'
+import type { DashboardMetrics, Product, CustomerTier } from '../types'
+
+const CATEGORY_NAMES: Record<string, string> = {
+  BEBIDAS_CALIENTES: 'Bebidas Calientes',
+  HOT_BEVERAGES: 'Bebidas Calientes',
+  BEBIDAS_FRIAS: 'Bebidas Frías',
+  COLD_BEVERAGES: 'Bebidas Frías',
+  REPOSTERIA: 'Repostería',
+  BAKERY: 'Repostería',
+  DESAYUNOS: 'Desayunos',
+  BREAKFAST: 'Desayunos',
+  SNACKS: 'Snacks',
+  OTROS: 'Otros',
+  OTHER: 'Otros',
+}
 
 export const DashboardPage: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
@@ -45,7 +59,14 @@ export const DashboardPage: React.FC = () => {
             GOLD: 0,
             PLATINUM: 0,
           } as Record<CustomerTier, number>,
-          salesByRoastLevel: {} as Record<RoastLevel, number>,
+          salesByCategory: {
+            BEBIDAS_CALIENTES: 0,
+            BEBIDAS_FRIAS: 0,
+            REPOSTERIA: 0,
+            DESAYUNOS: 0,
+            SNACKS: 0,
+            OTROS: 0,
+          },
         }
       )
       setLowStockProducts(lowStockData ?? [])
@@ -62,16 +83,23 @@ export const DashboardPage: React.FC = () => {
   }, [])
 
   if (loading) {
-    return <LoadingSpinner label="Calculando analíticas de negocio en tiempo real..." />
+    return <LoadingSpinner label="Cargando métricas de cafetería en tiempo real..." />
   }
+
+  const categoryEntries = Object.entries(metrics?.salesByCategory ?? {}).map(([key, val]) => ({
+    key,
+    label: CATEGORY_NAMES[key] || key,
+    amount: Number(val || 0),
+  }))
+  const totalCategorySales = categoryEntries.reduce((sum, item) => sum + item.amount, 0)
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Consola de Operaciones</h1>
+          <h1 className="page-title">Dashboard</h1>
           <p className="page-desc">
-            Balance de facturación, rotación de lotes y estado de inventario.
+            Balance de facturación, estado de pedidos y control de inventario de cafetería.
           </p>
         </div>
         <button
@@ -90,16 +118,16 @@ export const DashboardPage: React.FC = () => {
       {metrics && metrics.lowStockCount > 0 && (
         <Alert
           type="warning"
-          message={`¡Alerta de Inventario Crítico! Existen ${metrics.lowStockCount} lotes de granos de café con stock menor a 10 kg.`}
+          message={`Alerta de Inventario: Existen ${metrics.lowStockCount} productos con stock menor o igual a 10 unidades.`}
         />
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="stats-grid">
+      {/* KPI Cards Grid: 4 columns responsive */}
+      <div className="stats-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Ingresos Totales"
           value={`$${Number(metrics?.totalRevenue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle="Facturación acumulada (7 días)"
+          subtitle="Facturación acumulada (órdenes válidas)"
           icon={<DollarSign size={20} color="var(--accent-green)" />}
           iconBg="var(--accent-green-soft)"
         />
@@ -107,7 +135,7 @@ export const DashboardPage: React.FC = () => {
         <StatCard
           title="Órdenes Procesadas"
           value={metrics?.totalOrders ?? 0}
-          subtitle={`${metrics?.activeOrders ?? 0} órdenes en preparación`}
+          subtitle={`${metrics?.activeOrders ?? 0} órdenes activas`}
           icon={<TrendingUp size={20} color="var(--accent-gold)" />}
           iconBg="var(--accent-gold-soft)"
         />
@@ -121,9 +149,9 @@ export const DashboardPage: React.FC = () => {
         />
 
         <StatCard
-          title="Stock Crítico"
+          title="Stock Bajo"
           value={metrics?.lowStockCount ?? 0}
-          subtitle="Lotes < 10 unidades/kg"
+          subtitle="Productos con <= 10 uds"
           icon={<AlertTriangle size={20} color="var(--accent-red)" />}
           iconBg="var(--accent-red-soft)"
         />
@@ -131,23 +159,26 @@ export const DashboardPage: React.FC = () => {
 
       {/* Analytics Breakdown Grid */}
       <div className="dashboard-grid">
-        {/* Sales by Roast Level */}
+        {/* Sales by Cafeteria Category */}
         <div className="card">
           <div className="card-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Coffee size={20} color="var(--accent-gold)" />
-              <span>Ventas por Nivel de Tueste</span>
+              <span>Ventas por Categoría</span>
             </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Métricas Acumuladas</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Métricas Reales</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
-            {metrics?.salesByRoastLevel &&
-              Object.entries(metrics.salesByRoastLevel).map(([roast, count]) => {
-                const total = Object.values(metrics.salesByRoastLevel).reduce((a, b) => a + b, 0) || 1
-                const percent = Math.round((count / total) * 100)
+            {categoryEntries.length === 0 || totalCategorySales === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', padding: '16px 0', textAlign: 'center' }}>
+                Sin órdenes completadas para calcular ventas por categoría aún.
+              </p>
+            ) : (
+              categoryEntries.map(({ key, label, amount }) => {
+                const percent = totalCategorySales > 0 ? Math.round((amount / totalCategorySales) * 100) : 0
                 return (
-                  <div key={roast}>
+                  <div key={key}>
                     <div
                       style={{
                         display: 'flex',
@@ -156,9 +187,11 @@ export const DashboardPage: React.FC = () => {
                         marginBottom: '6px',
                       }}
                     >
-                      <RoastBadge roast={roast as RoastLevel} />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        {label}
+                      </span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {count} bolsas ({percent}%)
+                        ${amount.toFixed(2)} ({percent}%)
                       </span>
                     </div>
                     <div
@@ -174,12 +207,7 @@ export const DashboardPage: React.FC = () => {
                         style={{
                           width: `${percent}%`,
                           height: '100%',
-                          backgroundColor:
-                            roast === 'OSCURO'
-                              ? '#78350f'
-                              : roast === 'MEDIO'
-                                ? 'var(--accent-gold)'
-                                : 'var(--accent-green)',
+                          backgroundColor: 'var(--accent-gold)',
                           borderRadius: '4px',
                           transition: 'width 0.4s ease',
                         }}
@@ -187,7 +215,8 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   </div>
                 )
-              })}
+              })
+            )}
           </div>
         </div>
 
@@ -225,19 +254,19 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Critical Stock Inventory Table */}
+      {/* Low Stock Inventory Table */}
       <div className="card" style={{ marginTop: '24px' }}>
         <div className="card-title">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Package size={20} color="var(--accent-red)" />
             <span>Alerta de Reabastecimiento Inmediato</span>
           </div>
-          <span className="badge badge-red">{lowStockProducts.length} Lotes Afectados</span>
+          <span className="badge badge-red">{lowStockProducts.length} Productos Afectados</span>
         </div>
 
         {lowStockProducts.length === 0 ? (
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', padding: '12px 0' }}>
-            Todo el inventario de granos de café se encuentra en niveles óptimos.
+            Todo el inventario se encuentra en niveles óptimos.
           </p>
         ) : (
           <div className="table-responsive">
@@ -245,9 +274,9 @@ export const DashboardPage: React.FC = () => {
               <thead>
                 <tr>
                   <th>SKU</th>
-                  <th>Variedad / Lote</th>
-                  <th>Origen</th>
-                  <th>Nivel de Tueste</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Precio Unitario</th>
                   <th>Stock Restante</th>
                   <th>Estado</th>
                 </tr>
@@ -257,15 +286,15 @@ export const DashboardPage: React.FC = () => {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>{p.sku}</td>
                     <td>{p.name}</td>
-                    <td>{p.origin || 'No especificado'}</td>
                     <td>
-                      <RoastBadge roast={p.roastLevel} />
+                      <CategoryBadge category={p.category} />
                     </td>
+                    <td>${Number(p.unitPrice ?? p.price ?? 0).toFixed(2)}</td>
                     <td style={{ fontWeight: 700, color: 'var(--accent-red)' }}>
-                      {p.stockQuantity} kg
+                      {p.stockQuantity} uds
                     </td>
                     <td>
-                      <span className="badge badge-red">Stock Crítico</span>
+                      <span className="badge badge-red">Stock Bajo</span>
                     </td>
                   </tr>
                 ))}

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../context/AuthContext'
+import { CartProvider } from '../context/CartContext'
 import ChatPage from '../pages/ChatPage'
 import chatService from '../services/chatService'
 
@@ -20,9 +21,11 @@ describe('ChatPage Component', () => {
   it('renders chat interface with welcome message and prompt suggestions', () => {
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <ChatPage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <ChatPage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     )
 
@@ -32,11 +35,11 @@ describe('ChatPage Component', () => {
     expect(screen.getByTestId('chat-send-btn')).toBeInTheDocument()
   })
 
-  it('sends user message and displays barista AI reply with tool pill', async () => {
+  it('sends user message and displays assistant reply with tool pill', async () => {
     vi.mocked(chatService.sendMessage).mockResolvedValueOnce({
-      reply: 'Te recomiendo el Café Colombia Huila Supremo con notas de caramelo.',
-      toolUsed: 'recommend_by_flavor',
-      toolData: { notes: ['caramelo'] },
+      reply: 'Te recomiendo el Cappuccino Tradicional.',
+      toolUsed: 'recommend_product',
+      toolData: { category: 'HOT_BEVERAGES' },
       riskLevel: 'SAFE',
       riskScore: 0,
       blockedByShield: false,
@@ -45,29 +48,31 @@ describe('ChatPage Component', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <ChatPage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <ChatPage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     )
 
     const input = screen.getByTestId('chat-input')
-    fireEvent.change(input, { target: { value: 'Recomiéndame un café con notas a caramelo' } })
+    fireEvent.change(input, { target: { value: 'Recomiéndame una bebida caliente' } })
 
     const sendBtn = screen.getByTestId('chat-send-btn')
     fireEvent.click(sendBtn)
 
     await waitFor(() => {
       expect(
-        screen.getByText('Te recomiendo el Café Colombia Huila Supremo con notas de caramelo.')
+        screen.getByText('Te recomiendo el Cappuccino Tradicional.')
       ).toBeInTheDocument()
-      expect(screen.getByText(/recommend_by_flavor/i)).toBeInTheDocument()
+      expect(screen.getByText(/recommend_product/i)).toBeInTheDocument()
     })
   })
 
   it('handles prompt shield block and shows security alert badge', async () => {
     vi.mocked(chatService.sendMessage).mockResolvedValueOnce({
-      reply: 'Solicitud bloqueada por reglas de seguridad de Coffee Enterprise.',
+      reply: 'Solicitud bloqueada por reglas de seguridad.',
       toolUsed: undefined,
       riskLevel: 'CRITICAL',
       riskScore: 90,
@@ -77,9 +82,11 @@ describe('ChatPage Component', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <ChatPage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <ChatPage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     )
 
@@ -91,7 +98,7 @@ describe('ChatPage Component', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Solicitud bloqueada por reglas de seguridad de Coffee Enterprise.')
+        screen.getByText('Solicitud bloqueada por reglas de seguridad.')
       ).toBeInTheDocument()
       expect(screen.getByText(/Ataque Bloqueado/i)).toBeInTheDocument()
     })

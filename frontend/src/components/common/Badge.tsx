@@ -39,6 +39,24 @@ export const RoastBadge: React.FC<{ roast: RoastLevel | string }> = ({ roast }) 
   return <Badge variant={config.variant}>{config.label}</Badge>
 }
 
+export const CategoryBadge: React.FC<{ category: string }> = ({ category }) => {
+  const map: Record<string, { label: string; variant: 'gold' | 'green' | 'blue' | 'red' }> = {
+    HOT_BEVERAGES: { label: 'Bebidas Calientes', variant: 'gold' },
+    COLD_BEVERAGES: { label: 'Bebidas Frías', variant: 'blue' },
+    BAKERY: { label: 'Repostería', variant: 'gold' },
+    BREAKFAST: { label: 'Desayunos', variant: 'green' },
+    SNACKS: { label: 'Snacks', variant: 'blue' },
+    OTHER: { label: 'Otros', variant: 'gold' },
+    BEBIDAS_CALIENTES: { label: 'Bebidas Calientes', variant: 'gold' },
+    BEBIDAS_FRIAS: { label: 'Bebidas Frías', variant: 'blue' },
+    REPOSTERIA: { label: 'Repostería', variant: 'gold' },
+    DESAYUNOS: { label: 'Desayunos', variant: 'green' },
+    OTROS: { label: 'Otros', variant: 'gold' },
+  }
+  const config = map[category] || { label: category, variant: 'gold' }
+  return <Badge variant={config.variant}>{config.label}</Badge>
+}
+
 export const OrderStatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) => {
   const map: Record<OrderStatus, { label: string; variant: 'gold' | 'green' | 'blue' | 'red' }> = {
     PENDIENTE: { label: 'Pendiente', variant: 'gold' },

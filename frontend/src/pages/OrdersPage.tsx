@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, ShoppingBag, CheckCircle, Ban, Clock } from 'lucide-react'
+import { Plus, ShoppingBag, CheckCircle, Ban, Clock, Check, Coffee } from 'lucide-react'
 import orderService from '../services/orderService'
 import productService from '../services/productService'
 import customerService from '../services/customerService'
@@ -16,6 +16,14 @@ import type {
   OrderItemRequest,
 } from '../types'
 
+const PAYMENT_METHOD_NAMES: Record<PaymentMethod, string> = {
+  TARJETA_CREDITO: 'Tarjeta de Crédito',
+  TARJETA_DEBITO: 'Tarjeta de Débito',
+  EFECTIVO: 'Efectivo',
+  TRANSFERENCIA: 'Transferencia',
+  PUNTOS_LEALTAD: 'Puntos de Lealtad',
+}
+
 export const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -31,7 +39,7 @@ export const OrdersPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TARJETA_CREDITO')
   const [notes, setNotes] = useState('')
   const [cartItems, setCartItems] = useState<Array<{ productId: number; quantity: number }>>([
-    { productId: 1, quantity: 2 },
+    { productId: 1, quantity: 1 },
   ])
 
   const loadData = async () => {
@@ -50,8 +58,11 @@ export const OrdersPage: React.FC = () => {
       if (customersRes?.content?.length) {
         setSelectedCustomerId(customersRes.content[0].id)
       }
+      if (productsRes?.content?.length && cartItems[0]?.productId === 1) {
+        setCartItems([{ productId: productsRes.content[0].id, quantity: 1 }])
+      }
     } catch {
-      setError('Error al sincronizar las órdenes con el backend.')
+      setError('Error al sincronizar los pedidos con el backend.')
       setOrders([])
     } finally {
       setLoading(false)
@@ -69,14 +80,14 @@ export const OrdersPage: React.FC = () => {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
       )
-      setSuccess(`Orden #${orderId} actualizada a estado: ${nextStatus}.`)
+      setSuccess(`Pedido #${orderId} actualizado a estado: ${nextStatus}.`)
     } catch {
-      setError('Error al actualizar el estado de la orden.')
+      setError('Error al actualizar el estado del pedido.')
     }
   }
 
   const handleCancelOrder = async (orderId: number) => {
-    if (!window.confirm('¿Está seguro de cancelar esta orden? El stock se reintegrará automáticamente.')) {
+    if (!window.confirm('¿Está seguro de cancelar este pedido? El stock se reintegrará automáticamente.')) {
       return
     }
     setError(null)
@@ -85,9 +96,9 @@ export const OrdersPage: React.FC = () => {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: 'CANCELADO' } : o))
       )
-      setSuccess(`Orden #${orderId} cancelada. Granos de café restituidos al inventario.`)
+      setSuccess(`Pedido #${orderId} cancelado. Unidades restituidas al inventario.`)
     } catch {
-      setError('Error al cancelar la orden.')
+      setError('Error al cancelar el pedido.')
     }
   }
 
@@ -100,81 +111,103 @@ export const OrdersPage: React.FC = () => {
         quantity: ci.quantity,
       }))
 
-      const newOrder: Order = await orderService.createOrder({
+      const newOrder = await orderService.createOrder({
         customerId: selectedCustomerId,
         items: itemsPayload,
         paymentMethod,
         notes,
       })
 
-      setOrders((prev) => [newOrder, ...prev])
-      setSuccess(`Orden ${newOrder.orderNumber} creada exitosamente por $${Number(newOrder.total).toFixed(2)}.`)
+      setOrders([newOrder, ...orders])
+      setSuccess(`Pedido #${newOrder.orderNumber} registrado exitosamente.`)
       setIsCreateOpen(false)
       setNotes('')
-    } catch {
-      setError('Error al registrar la orden.')
+      if (products.length > 0) {
+        setCartItems([{ productId: products[0].id, quantity: 1 }])
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Error al crear el pedido en el POS.'
+      setError(msg)
     }
   }
 
-  const filteredOrders =
-    statusFilter === 'ALL' ? orders : orders.filter((o) => o.status === statusFilter)
+  const filteredOrders = orders.filter((o) => {
+    if (statusFilter === 'ALL') return true
+    return o.status === statusFilter
+  })
 
-  if (loading) return <LoadingSpinner label="Cargando historial de pedidos de café..." />
+  if (loading) return <LoadingSpinner label="Cargando pedidos de cafetería..." />
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Gestión de Órdenes & POS</h1>
+          <h1 className="page-title">Pedidos y POS</h1>
           <p className="page-desc">
-            Recepción, despacho y facturación de café con aplicación automática de lealtad.
+            Punto de venta, control de comandas y ciclo de vida de pedidos.
           </p>
         </div>
         <button
           onClick={() => setIsCreateOpen(true)}
           className="btn btn-primary"
-          data-testid="new-order-btn"
+          data-testid="create-order-btn"
         >
           <Plus size={18} />
-          Nueva Venta / Orden
+          Nuevo Pedido POS
         </button>
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
       {success && <Alert type="success" message={success} onClose={() => setSuccess(null)} />}
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        {[
-          { key: 'ALL', label: 'Todas las Órdenes' },
-          { key: 'PENDIENTE', label: 'Pendientes' },
-          { key: 'EN_PREPARACION', label: 'En Preparación' },
-          { key: 'LISTO', label: 'Listas' },
-          { key: 'ENTREGADO', label: 'Entregadas' },
-          { key: 'CANCELADO', label: 'Canceladas' },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`btn btn-sm ${statusFilter === tab.key ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Filter Bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '20px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Filtrar por estado:</span>
+        {['ALL', 'PENDIENTE', 'CONFIRMADO', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO'].map(
+          (status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`btn btn-sm ${statusFilter === status ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              {status === 'ALL'
+                ? 'Todos'
+                : status === 'PENDIENTE'
+                ? 'Pendiente'
+                : status === 'CONFIRMADO'
+                ? 'Confirmado'
+                : status === 'EN_PREPARACION'
+                ? 'En Preparación'
+                : status === 'LISTO'
+                ? 'Listo'
+                : status === 'ENTREGADO'
+                ? 'Entregado'
+                : 'Cancelado'}
+            </button>
+          )
+        )}
       </div>
 
       {/* Orders Table */}
       <div className="card">
         {filteredOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <ShoppingBag size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
-            <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay órdenes registradas aún</h3>
+            <Coffee size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay pedidos registrados</h3>
             <p style={{ color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px', fontSize: '0.9rem' }}>
-              Cuando los clientes o visitantes realicen compras en la tienda, las órdenes aparecerán aquí en tiempo real para ser preparadas por los baristas.
+              El sistema POS está listo para registrar pedidos reales de cafetería.
             </p>
             <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
               <Plus size={16} />
-              Crear Orden Manual
+              Registrar Primer Pedido
             </button>
           </div>
         ) : (
@@ -182,85 +215,102 @@ export const OrdersPage: React.FC = () => {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Nº Orden</th>
+                  <th>N° Pedido</th>
+                  <th>Fecha</th>
                   <th>Cliente</th>
                   <th>Nivel</th>
-                  <th>Items</th>
-                  <th>Total ($)</th>
-                  <th>Pago</th>
+                  <th>Ítems</th>
+                  <th>Total</th>
+                  <th>Método Pago</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.map((o) => (
-                <tr key={o.id}>
-                  <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>
-                    {o.orderNumber}
-                  </td>
-                  <td>{o.customerName || `Cliente #${o.customerId}`}</td>
-                  <td>{o.customerTier && <TierBadge tier={o.customerTier} />}</td>
-                  <td>
-                    <div style={{ fontSize: '0.82rem' }}>
-                      {o.items?.map((item, idx) => (
-                        <div key={idx}>
-                          {item.quantity}x {item.productName}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                    ${o.total?.toFixed(2)}
-                  </td>
-                  <td style={{ fontSize: '0.8rem' }}>{o.paymentMethod}</td>
-                  <td>
-                    <OrderStatusBadge status={o.status} />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {o.status === 'PENDIENTE' && (
-                        <button
-                          onClick={() => handleStatusChange(o.id, 'EN_PREPARACION')}
-                          className="btn btn-secondary btn-sm"
-                          title="Iniciar preparación"
-                        >
-                          <Clock size={14} /> Preparar
-                        </button>
-                      )}
-                      {o.status === 'EN_PREPARACION' && (
-                        <button
-                          onClick={() => handleStatusChange(o.id, 'LISTO')}
-                          className="btn btn-secondary btn-sm"
-                          title="Marcar como listo"
-                        >
-                          <CheckCircle size={14} color="var(--accent-green)" /> Listo
-                        </button>
-                      )}
-                      {o.status === 'LISTO' && (
-                        <button
-                          onClick={() => handleStatusChange(o.id, 'ENTREGADO')}
-                          className="btn btn-primary btn-sm"
-                          title="Entregar al cliente"
-                        >
-                          <ShoppingBag size={14} /> Entregar
-                        </button>
-                      )}
-                      {o.status !== 'ENTREGADO' && o.status !== 'CANCELADO' && (
-                        <button
-                          onClick={() => handleCancelOrder(o.id)}
-                          className="btn btn-danger btn-sm"
-                          title="Cancelar orden y restituir inventario"
-                        >
-                          <Ban size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  <tr key={o.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>
+                      #{o.orderNumber || o.id}
+                    </td>
+                    <td style={{ fontSize: '0.8rem' }}>
+                      {o.createdAt ? new Date(o.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
+                    </td>
+                    <td>{o.customerName || `Cliente #${o.customerId}`}</td>
+                    <td>
+                      <TierBadge tier={o.customerTier || 'BRONZE'} />
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.82rem' }}>
+                        {o.items?.map((item, idx) => (
+                          <div key={idx}>
+                            {item.quantity}x {item.productName}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      ${Number(o.total || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontSize: '0.8rem' }}>
+                      {PAYMENT_METHOD_NAMES[o.paymentMethod] || o.paymentMethod}
+                    </td>
+                    <td>
+                      <OrderStatusBadge status={o.status} />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        {o.status === 'PENDIENTE' && (
+                          <button
+                            onClick={() => handleStatusChange(o.id, 'CONFIRMADO')}
+                            className="btn btn-secondary btn-sm"
+                            title="Confirmar pedido"
+                          >
+                            <Check size={14} /> Confirmar
+                          </button>
+                        )}
+                        {o.status === 'CONFIRMADO' && (
+                          <button
+                            onClick={() => handleStatusChange(o.id, 'EN_PREPARACION')}
+                            className="btn btn-secondary btn-sm"
+                            title="Iniciar preparación en barra"
+                          >
+                            <Clock size={14} /> Preparar
+                          </button>
+                        )}
+                        {o.status === 'EN_PREPARACION' && (
+                          <button
+                            onClick={() => handleStatusChange(o.id, 'LISTO')}
+                            className="btn btn-secondary btn-sm"
+                            title="Marcar como listo"
+                          >
+                            <CheckCircle size={14} color="var(--accent-green)" /> Listo
+                          </button>
+                        )}
+                        {o.status === 'LISTO' && (
+                          <button
+                            onClick={() => handleStatusChange(o.id, 'ENTREGADO')}
+                            className="btn btn-primary btn-sm"
+                            title="Entregar al cliente"
+                          >
+                            <ShoppingBag size={14} /> Entregar
+                          </button>
+                        )}
+                        {o.status !== 'ENTREGADO' && o.status !== 'CANCELADO' && (
+                          <button
+                            onClick={() => handleCancelOrder(o.id)}
+                            className="btn btn-danger btn-sm"
+                            title="Cancelar pedido y restituir stock"
+                          >
+                            <Ban size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -268,21 +318,25 @@ export const OrdersPage: React.FC = () => {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="Crear Nueva Orden de Café"
+        title="Registrar Pedido POS"
       >
         <form onSubmit={handleCreateOrder}>
           <div className="form-group">
-            <label className="form-label">Cliente Asociado (Descuento por Lealtad)</label>
+            <label className="form-label">Cliente Registrado</label>
             <select
               className="form-select"
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(parseInt(e.target.value, 10))}
             >
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstName} {c.lastName} ({c.tier} - {c.loyaltyPoints} pts)
-                </option>
-              ))}
+              {customers.length === 0 ? (
+                <option value={1}>Cliente General</option>
+              ) : (
+                customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.firstName} {c.lastName} ({c.tier || 'BRONZE'} - {c.loyaltyPoints || 0} pts)
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -310,7 +364,7 @@ export const OrdersPage: React.FC = () => {
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} (${Number(p.unitPrice ?? p.price ?? 0).toFixed(2)}/kg) - Stock: {p.stockQuantity}kg
+                      {p.name} (${Number(p.unitPrice ?? p.price ?? 0).toFixed(2)}) - Stock: {p.stockQuantity} uds
                     </option>
                   ))}
                 </select>
@@ -348,7 +402,7 @@ export const OrdersPage: React.FC = () => {
               className="btn btn-secondary btn-sm"
               style={{ marginTop: '8px' }}
             >
-              + Agregar otro lote de café
+              + Agregar otro producto
             </button>
           </div>
 
@@ -368,11 +422,11 @@ export const OrdersPage: React.FC = () => {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Notas de Barista</label>
+              <label className="form-label">Notas del Pedido</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="ej. Molienda Aeropress, empaque al vacío"
+                placeholder="ej. Para llevar, leche de almendras"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -388,7 +442,7 @@ export const OrdersPage: React.FC = () => {
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary">
-              Procesar y Confirmar Orden
+              Confirmar y Crear Pedido
             </button>
           </div>
         </form>

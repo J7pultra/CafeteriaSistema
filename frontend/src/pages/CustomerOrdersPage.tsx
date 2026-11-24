@@ -65,20 +65,20 @@ export const CustomerOrdersPage: React.FC = () => {
     return idx >= 0 ? idx : 0
   }
 
-  if (loading) return <LoadingSpinner label="Recuperando tus pedidos de café..." />
+  if (loading) return <LoadingSpinner label="Recuperando tus pedidos..." />
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Mis Pedidos de Café</h1>
+          <h1 className="page-title">Mis Pedidos</h1>
           <p className="page-desc">
-            Seguimiento en tiempo real de preparación barista y entregas de lotes especiales.
+            Seguimiento en tiempo real del estado de preparación y entrega de tus pedidos.
           </p>
         </div>
         <Link to="/store" className="btn btn-primary" style={{ display: 'flex', gap: '8px' }}>
           <ShoppingBag size={18} />
-          Ir a la Tienda
+          Ir al Menú
         </Link>
       </div>
 
@@ -96,10 +96,10 @@ export const CustomerOrdersPage: React.FC = () => {
           <Coffee size={56} style={{ color: 'var(--accent-gold)', opacity: 0.4, margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Aún no tienes pedidos registrados</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-            Explora nuestra tienda de café de especialidad y pide tus granos favoritos recién tostados.
+            Explora nuestro menú y disfruta de nuestras especialidades de cafetería y repostería.
           </p>
           <Link to="/store" className="btn btn-primary">
-            Explorar Tienda de Café
+            Explorar Menú
           </Link>
         </div>
       ) : (
@@ -139,7 +139,7 @@ export const CustomerOrdersPage: React.FC = () => {
                         color: 'var(--accent-gold)',
                       }}
                     >
-                      {order.orderNumber}
+                      #{order.orderNumber || order.id}
                     </span>
                     <OrderStatusBadge status={order.status} />
                   </div>
@@ -147,10 +147,10 @@ export const CustomerOrdersPage: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.85rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
                       <Calendar size={15} />
-                      <span>{new Date(order.createdAt).toLocaleDateString('es-CO')}</span>
+                      <span>{order.createdAt ? new Date(order.createdAt).toLocaleDateString([], { dateStyle: 'medium' }) : 'N/A'}</span>
                     </div>
                     <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.1rem' }}>
-                      ${Number(order.total).toFixed(2)} USD
+                      ${Number(order.total || 0).toFixed(2)} USD
                     </div>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export const CustomerOrdersPage: React.FC = () => {
                         const labels: Record<OrderStatus, string> = {
                           PENDIENTE: 'Recibido',
                           CONFIRMADO: 'Confirmado',
-                          EN_PREPARACION: 'En Barra',
+                          EN_PREPARACION: 'En Preparación',
                           LISTO: 'Listo',
                           ENTREGADO: 'Entregado',
                           CANCELADO: 'Cancelado',
@@ -240,8 +240,8 @@ export const CustomerOrdersPage: React.FC = () => {
                                 color: isCurrent
                                   ? 'var(--accent-gold)'
                                   : isDone
-                                  ? 'var(--text-primary)'
-                                  : 'var(--text-muted)',
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
                                 textAlign: 'center',
                               }}
                             >
@@ -271,10 +271,10 @@ export const CustomerOrdersPage: React.FC = () => {
                       fontWeight: 700,
                     }}
                   >
-                    Granos Seleccionados:
+                    Productos:
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {order.items.map((it, idx) => (
+                    {order.items?.map((it, idx) => (
                       <div
                         key={idx}
                         style={{
@@ -286,7 +286,7 @@ export const CustomerOrdersPage: React.FC = () => {
                         <div>
                           <strong style={{ color: 'var(--text-primary)' }}>{it.productName}</strong>
                           <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>
-                            x {it.quantity} kg
+                            x{it.quantity}
                           </span>
                         </div>
                         <div style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>

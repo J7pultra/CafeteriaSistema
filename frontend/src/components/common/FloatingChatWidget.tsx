@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   X,
   Send,
-  Sparkles,
-  Bot,
+  MessageSquare,
   RotateCcw,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -12,6 +12,11 @@ import chatService, { type ChatMessage } from '../../services/chatService'
 import useSommelierActionDispatcher from '../../hooks/useSommelierActionDispatcher'
 
 export const FloatingChatWidget: React.FC = () => {
+  const location = useLocation()
+  if (location.pathname === '/chat') {
+    return null
+  }
+
   const { user } = useAuth()
   const { cart, addToCart } = useCart()
   const [isOpen, setIsOpen] = useState(false)
@@ -23,43 +28,43 @@ export const FloatingChatWidget: React.FC = () => {
 
   const roleConfig = isAdmin
     ? {
-        title: 'Asistente de Operaciones & Ventas',
-        badge: 'Modo Gerencia',
-        icon: '📊',
+        title: 'Asistente de Operaciones',
+        badge: 'Administración',
+        buttonLabel: 'Asistente',
         welcome:
-          '¡Hola Administrador! 📊 Soy tu asistente analítico de Sistema Café. Puedo ayudarte con métricas de ventas en tiempo real, alertas de stock crítico y recomendaciones de reabastecimiento.',
+          'Hola Administrador. Soy el asistente de operaciones de Sistema Café. Puedo ayudarte con consultas de inventario, métricas de ventas y estado de pedidos.',
         chips: [
-          'Reporte de stock crítico',
+          'Reporte de stock bajo',
           'Resumen de ventas',
-          'Clientes más fieles',
-          'Rotación de lotes',
+          'Clientes registrados',
+          'Productos en catálogo',
         ],
       }
     : isBarista
     ? {
-        title: 'Copiloto Técnico de Barra',
-        badge: 'Modo Estación',
-        icon: '⏱️',
+        title: 'Asistente de Barra',
+        badge: 'Estación de Barra',
+        buttonLabel: 'Asistente',
         welcome:
-          '¡Hola Barista! ☕ Estoy a tu disposición en la barra para guiarte en recetas de extracción (ratios, clicks de molienda, agua a 93°C), calibración de espresso y órdenes en preparación.',
+          'Hola Barista. Estoy a tu disposición para ayudarte a consultar pedidos en preparación y disponibilidad de productos en el catálogo.',
         chips: [
-          'Receta V60 15g',
-          'Calibración de Espresso 1:2',
           'Pedidos en preparación',
-          'Extracción Chemex',
+          'Productos disponibles',
+          'Consultar stock de leche',
+          'Ver pedidos pendientes',
         ],
       }
     : {
-        title: 'Sommelier & Asistente de Compra',
-        badge: 'Asesor de Café',
-        icon: '☕',
+        title: 'Soporte y Consultas',
+        badge: 'Atención al Cliente',
+        buttonLabel: 'Soporte',
         welcome:
-          '¡Hola! ☕ Bienvenido a nuestra tostaduría de especialidad. Cuéntame qué perfil de sabor prefieres (frutal, floral, achocolatado) y te recomendaré el café ideal para tu método favorito.',
+          'Hola. Bienvenido a Sistema Café. Puedo ayudarte a conocer nuestras bebidas calientes, frías y repostería artesanal.',
         chips: [
-          'Recomiéndame un café',
-          'Café con notas de chocolate',
-          'Cómo preparo en V60',
-          'Beneficios del café en grano',
+          'Ver bebidas calientes',
+          'Opciones de repostería',
+          'Consultar horarios',
+          'Información de membresía',
         ],
       }
 
@@ -76,11 +81,10 @@ export const FloatingChatWidget: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Actualizar mensaje de bienvenida si cambia el rol
   useEffect(() => {
     setMessages([
       {
-        id: `float-welcome-${userRole}`,
+        id: 'float-welcome',
         sender: 'assistant',
         text: roleConfig.welcome,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -89,73 +93,74 @@ export const FloatingChatWidget: React.FC = () => {
     ])
   }, [userRole])
 
-  useEffect(() => {
-    if (isOpen && typeof messagesEndRef.current?.scrollIntoView === 'function') {
+  const scrollToBottom = () => {
+    if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [isOpen, messages, loading])
+  }
 
-  const handleSend = async (messageText?: string) => {
-    const textToSend = (messageText ?? input).trim()
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom()
+    }
+  }, [messages, loading, isOpen])
+
+  const handleSend = async (manualText?: string) => {
+    const textToSend = (manualText ?? input).trim()
     if (!textToSend || loading) return
 
     const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: `u-${Date.now()}`,
       sender: 'user',
       text: textToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
     setMessages((prev) => [...prev, userMsg])
-    setInput('')
+    if (!manualText) setInput('')
     setLoading(true)
 
     try {
-      const currentCart = cart.map((item) => ({
+      const cartPayload = cart.map((item) => ({
         id: item.product.id,
         name: item.product.name,
         quantity: item.quantity,
         price: Number(item.product.unitPrice ?? item.product.price ?? 0),
       }))
-      const response = await chatService.sendMessage(textToSend, currentCart)
+
+      const response = await chatService.sendMessage(textToSend, cartPayload)
 
       const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: `a-${Date.now()}`,
         sender: 'assistant',
         text: response.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         toolUsed: response.toolUsed,
         toolData: response.toolData,
-        ui_actions: response.ui_actions,
-        riskLevel: response.riskLevel,
-        blockedByShield: response.blockedByShield,
       }
 
       setMessages((prev) => [...prev, assistantMsg])
 
-      // 1. Direct Global Cart Synchronization via tool_results (Single Atomic Addition)
       if (response.tool_results && response.tool_results.length > 0) {
         for (const tr of response.tool_results) {
           if (tr.tool === 'add_to_cart' && tr.success && tr.payload) {
             const qty = Number(tr.payload.quantity) || 1
-            addToCart(tr.payload, qty)
+            addToCart(tr.payload as any, qty)
           }
         }
       }
 
-      // 2. Execute Sommelier AI Real-Time Visual Co-Navigation Commands
       if (response.ui_actions && response.ui_actions.length > 0) {
-        dispatchActions(response.ui_actions)
+        await dispatchActions(response.ui_actions)
       }
     } catch {
       setMessages((prev) => [
         ...prev,
         {
-          id: `assistant-err-${Date.now()}`,
+          id: `err-${Date.now()}`,
           sender: 'assistant',
-          text: 'Error al conectar con el servidor de IA.',
+          text: 'No se pudo contactar el servicio de asistencia. Intenta nuevamente.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          riskLevel: 'SAFE',
         },
       ])
     } finally {
@@ -166,7 +171,7 @@ export const FloatingChatWidget: React.FC = () => {
   const handleReset = () => {
     setMessages([
       {
-        id: `float-welcome-${Date.now()}`,
+        id: 'float-welcome-reset',
         sender: 'assistant',
         text: roleConfig.welcome,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -176,7 +181,17 @@ export const FloatingChatWidget: React.FC = () => {
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}>
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+      }}
+    >
       {/* Botón flotante estilizado */}
       {!isOpen && (
         <button
@@ -184,25 +199,24 @@ export const FloatingChatWidget: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            padding: '12px 20px',
-            borderRadius: '30px',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '24px',
             backgroundColor: 'var(--accent-gold)',
             color: '#140e0a',
             border: 'none',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
             cursor: 'pointer',
-            fontWeight: 700,
-            fontSize: '0.92rem',
+            fontWeight: 600,
+            fontSize: '0.88rem',
             transition: 'transform 0.2s, box-shadow 0.2s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
           data-testid="floating-chat-trigger"
         >
-          <Bot size={20} />
-          <span>{roleConfig.title.split(' ')[0]} AI</span>
-          <Sparkles size={16} />
+          <MessageSquare size={17} />
+          <span>{roleConfig.buttonLabel}</span>
         </button>
       )}
 
@@ -210,10 +224,10 @@ export const FloatingChatWidget: React.FC = () => {
       {isOpen && (
         <div
           style={{
-            width: '390px',
-            height: '540px',
+            width: '380px',
+            height: '520px',
             backgroundColor: '#140e0a',
-            borderRadius: '16px',
+            borderRadius: '12px',
             border: '1px solid rgba(212, 163, 115, 0.35)',
             boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
             display: 'flex',
@@ -233,13 +247,13 @@ export const FloatingChatWidget: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.2rem' }}>{roleConfig.icon}</span>
+              <MessageSquare size={16} color="var(--accent-gold)" />
               <div>
-                <div style={{ color: 'var(--accent-gold)', fontSize: '0.88rem', fontWeight: 700 }}>
+                <div style={{ color: 'var(--accent-gold)', fontSize: '0.88rem', fontWeight: 600 }}>
                   {roleConfig.title}
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {roleConfig.badge} • Gemini 3 AI
+                  {roleConfig.badge}
                 </div>
               </div>
             </div>
@@ -274,27 +288,25 @@ export const FloatingChatWidget: React.FC = () => {
             </div>
           </div>
 
-          {/* Action Dispatcher Status Banner */}
+          {/* Banner de acción estructurada en progreso */}
           {isExecuting && (
             <div
               style={{
-                backgroundColor: 'rgba(217, 119, 6, 0.15)',
-                borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
-                padding: '6px 14px',
+                backgroundColor: 'rgba(212, 163, 115, 0.2)',
+                color: 'var(--accent-gold)',
+                padding: '6px 12px',
+                fontSize: '0.74rem',
+                borderBottom: '1px solid var(--border-gold)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.75rem',
-                color: 'var(--accent-gold)',
-                fontWeight: 600,
+                gap: '6px',
               }}
             >
-              <Sparkles size={13} />
-              <span>{statusMessage || 'Co-Navegando y actuando en la interfaz...'}</span>
+              <span>{statusMessage || 'Ejecutando acción...'}</span>
             </div>
           )}
 
-          {/* Area de Mensajes */}
+          {/* Lista de mensajes */}
           <div
             style={{
               flex: 1,
@@ -302,7 +314,8 @@ export const FloatingChatWidget: React.FC = () => {
               padding: '14px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px',
+              gap: '10px',
+              backgroundColor: '#120d09',
             }}
           >
             {messages.map((m) => {
@@ -313,28 +326,21 @@ export const FloatingChatWidget: React.FC = () => {
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
+                    backgroundColor: isUser ? 'var(--accent-gold)' : 'rgba(255,255,255,0.06)',
+                    color: isUser ? '#140e0a' : 'var(--text-primary)',
+                    borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                    padding: '8px 12px',
+                    fontSize: '0.84rem',
+                    lineHeight: '1.4',
+                    border: isUser ? 'none' : '1px solid rgba(255,255,255,0.08)',
                   }}
                 >
-                    <div
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      backgroundColor: isUser ? 'var(--accent-gold)' : 'var(--bg-card)',
-                      color: isUser ? '#140e0a' : 'var(--text-primary)',
-                      fontSize: '0.84rem',
-                      lineHeight: '1.45',
-                      border: isUser ? 'none' : '1px solid var(--border-color)',
-                      whiteSpace: 'pre-line',
-                    }}
-                  >
+                  <div style={{ whiteSpace: 'pre-wrap' }}>
                     {m.text.split('\n').map((line, lIdx, arr) => {
-                      const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+                      const parts = line.split(/(`[^`]+`)/g)
                       return (
                         <React.Fragment key={lIdx}>
                           {parts.map((p, pIdx) => {
-                            if (p.startsWith('**') && p.endsWith('**')) {
-                              return <strong key={pIdx}>{p.slice(2, -2)}</strong>
-                            }
                             if (p.startsWith('`') && p.endsWith('`')) {
                               return (
                                 <code
@@ -364,7 +370,7 @@ export const FloatingChatWidget: React.FC = () => {
                         marginTop: '3px',
                       }}
                     >
-                      ⚡ {m.toolUsed}
+                      Herramienta: {m.toolUsed}
                     </div>
                   )}
                 </div>
@@ -372,7 +378,7 @@ export const FloatingChatWidget: React.FC = () => {
             })}
             {loading && (
               <div style={{ fontSize: '0.78rem', color: 'var(--accent-gold)', padding: '6px' }}>
-                Preparando respuesta sensorial...
+                Consultando sistema...
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -440,8 +446,8 @@ export const FloatingChatWidget: React.FC = () => {
                 isAdmin
                   ? 'Consulta métricas o inventario...'
                   : isBarista
-                  ? 'Pide una receta o calibración...'
-                  : 'Pide una recomendación de café...'
+                  ? 'Consulta pedidos o productos...'
+                  : 'Consulta el menú o tus pedidos...'
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}

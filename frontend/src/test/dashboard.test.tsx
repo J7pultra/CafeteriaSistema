@@ -31,33 +31,28 @@ describe('DashboardPage Analytics', () => {
       GOLD: 15,
       PLATINUM: 5,
     },
-    salesByRoastLevel: {
-      CLARO: 40,
-      MEDIO_CLARO: 20,
-      MEDIO: 60,
-      MEDIO_OSCURO: 25,
-      OSCURO: 15,
+    salesByCategory: {
+      BEBIDAS_CALIENTES: 250.0,
+      REPOSTERIA: 110.0,
     },
   }
 
   const mockLowStock: Product[] = [
     {
       id: 1,
-      sku: 'COF-COL-MED',
-      name: 'Café Colombia Huila Supremo',
-      roastLevel: 'MEDIO',
-      category: 'ORIGEN_UNICO',
-      price: 18.5,
+      sku: 'BEB-COL-MED',
+      name: 'Café Cappuccino',
+      category: 'HOT_BEVERAGES',
+      price: 3.5,
       stockQuantity: 5,
       active: true,
     },
     {
       id: 2,
-      sku: 'COF-ETH-YIR',
-      name: 'Café Etiopía Yirgacheffe Grado 1',
-      roastLevel: 'CLARO',
-      category: 'ESPECIALIDAD',
-      price: 24.0,
+      sku: 'REP-CRO-ALM',
+      name: 'Croissant de Almendras',
+      category: 'BAKERY',
+      price: 2.8,
       stockQuantity: 3,
       active: true,
     },
@@ -77,7 +72,7 @@ describe('DashboardPage Analytics', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Consola de Operaciones')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
     })
 
     // Check Weekly New Customers KPI
@@ -100,17 +95,17 @@ describe('DashboardPage Analytics', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/¡Alerta de Inventario Crítico! Existen 2 lotes/i)
+        screen.getByText(/Alerta de Inventario: Existen 2 productos con stock menor o igual a 10 unidades/i)
       ).toBeInTheDocument()
     })
 
-    expect(screen.getByText('COF-COL-MED')).toBeInTheDocument()
-    expect(screen.getByText('5 kg')).toBeInTheDocument()
-    expect(screen.getByText('COF-ETH-YIR')).toBeInTheDocument()
-    expect(screen.getByText('3 kg')).toBeInTheDocument()
+    expect(screen.getByText('BEB-COL-MED')).toBeInTheDocument()
+    expect(screen.getByText('5 uds')).toBeInTheDocument()
+    expect(screen.getByText('REP-CRO-ALM')).toBeInTheDocument()
+    expect(screen.getByText('3 uds')).toBeInTheDocument()
   })
 
-  it('renders sales by roast level and loyalty tier breakdowns', async () => {
+  it('renders sales by category and loyalty tier breakdowns', async () => {
     render(
       <MemoryRouter>
         <DashboardPage />
@@ -118,11 +113,11 @@ describe('DashboardPage Analytics', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Ventas por Nivel de Tueste')).toBeInTheDocument()
+      expect(screen.getByText('Ventas por Categoría')).toBeInTheDocument()
       expect(screen.getByText('Fidelización de Clientes')).toBeInTheDocument()
     })
 
-    expect(screen.getByText(/60 bolsas/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Bebidas Calientes/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('PLATINO')).toBeInTheDocument()
   })
 })

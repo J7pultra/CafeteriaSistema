@@ -5,12 +5,11 @@ import {
   Coffee,
   ShoppingCart,
   Users,
-  Sparkles,
   LogOut,
   Coffee as CoffeeIcon,
   ShoppingBag,
   PackageCheck,
-  Bot,
+  MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
@@ -33,38 +32,36 @@ export const Sidebar: React.FC = () => {
 
   if (isAdmin) {
     navItems = [
-      { to: '/dashboard', label: 'Consola de Operaciones', icon: <LayoutDashboard size={18} /> },
-      { to: '/catalog', label: 'Lotes e Inventario', icon: <Coffee size={18} /> },
-      { to: '/orders', label: 'Despacho & Ventas', icon: <ShoppingCart size={18} /> },
-      { to: '/customers', label: 'Comunidad & Clientes', icon: <Users size={18} /> },
-      { to: '/skills', label: 'Laboratorio de Tueste', icon: <Sparkles size={18} /> },
-      { to: '/chat', label: 'Copiloto de Negocio', icon: <Bot size={18} /> },
+      { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+      { to: '/catalog', label: 'Productos', icon: <Coffee size={18} /> },
+      { to: '/orders', label: 'Pedidos y POS', icon: <ShoppingCart size={18} /> },
+      { to: '/customers', label: 'Clientes', icon: <Users size={18} /> },
+      { to: '/chat', label: 'Asistente', icon: <MessageSquare size={18} /> },
     ]
   } else if (isBarista) {
     navItems = [
-      { to: '/orders', label: 'Comandas de Barra', icon: <ShoppingCart size={18} /> },
-      { to: '/catalog', label: 'Granos Disponibles', icon: <Coffee size={18} /> },
-      { to: '/skills', label: 'Fichas de Extracción', icon: <Sparkles size={18} /> },
-      { to: '/chat', label: 'Copiloto de Barra', icon: <Bot size={18} /> },
+      { to: '/orders', label: 'Pedidos y POS', icon: <ShoppingCart size={18} /> },
+      { to: '/catalog', label: 'Disponibilidad', icon: <Coffee size={18} /> },
+      { to: '/chat', label: 'Asistente', icon: <MessageSquare size={18} /> },
     ]
   } else {
-    // Customer
+    // Cliente
     navItems = [
-      { to: '/store', label: 'Cafés de Origen', icon: <ShoppingBag size={18} /> },
+      { to: '/store', label: 'Menú', icon: <ShoppingBag size={18} /> },
       { to: '/carritocliente', label: 'Mi Carrito', icon: <ShoppingCart size={18} />, badge: totalCount > 0 ? totalCount : undefined },
       { to: '/my-orders', label: 'Mis Pedidos', icon: <PackageCheck size={18} /> },
-      { to: '/chat', label: 'Sommelier Virtual', icon: <Bot size={18} /> },
+      { to: '/chat', label: 'Soporte', icon: <MessageSquare size={18} /> },
     ]
   }
 
   const roleDisplayNames: Record<string, string> = {
-    ROLE_ADMIN: 'Gerente General',
-    ROLE_BARISTA: 'Barista de Estación',
-    ROLE_CUSTOMER: 'Miembro Leal',
+    ROLE_ADMIN: 'Administrador',
+    ROLE_BARISTA: 'Barista',
+    ROLE_CUSTOMER: 'Cliente',
   }
 
   const userRole = user?.roles?.[0] || 'ROLE_CUSTOMER'
-  const displayRole = roleDisplayNames[userRole] || userRole
+  const displayRole = roleDisplayNames[userRole] || 'Cliente'
 
   return (
     <aside className="sidebar">
@@ -74,7 +71,7 @@ export const Sidebar: React.FC = () => {
         </div>
         <div>
           <h1 className="brand-title">Sistema Café</h1>
-          <span className="brand-subtitle">Tostaduría de Especialidad</span>
+          <span className="brand-subtitle">Gestión de Cafetería</span>
         </div>
       </div>
 
@@ -109,22 +106,32 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-badge">
-          <div className="user-info">
-            <span className="user-name">{user?.username || 'Usuario'}</span>
-            <span className="user-role" style={{ color: 'var(--accent-gold)' }}>
-              {displayRole}
-            </span>
+        {user ? (
+          <div className="user-badge">
+            <div className="user-info">
+              <span className="user-name">{user.username}</span>
+              <span className="user-role" style={{ color: 'var(--accent-gold)' }}>
+                {displayRole}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '6px 10px' }}
+              title="Cerrar Sesión"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
-          <button
-            onClick={logout}
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '6px 10px' }}
-            title="Cerrar Sesión"
+        ) : (
+          <NavLink
+            to="/login"
+            className="btn btn-primary btn-sm"
+            style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
           >
-            <LogOut size={14} />
-          </button>
-        </div>
+            Iniciar Sesión
+          </NavLink>
+        )}
       </div>
     </aside>
   )

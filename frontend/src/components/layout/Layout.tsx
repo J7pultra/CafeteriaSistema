@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Coffee, LogIn, Sparkles, ShoppingBag, ShoppingCart } from 'lucide-react'
+import { Coffee, LogIn, MessageSquare, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import Sidebar from './Sidebar'
@@ -59,7 +59,7 @@ export const Layout: React.FC = () => {
                 Sistema Café
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Specialty Coffee Roasters
+                Gestión de Cafetería
               </div>
             </div>
           </Link>
@@ -79,7 +79,7 @@ export const Layout: React.FC = () => {
               }}
             >
               <ShoppingBag size={17} />
-              <span>Tienda de Café</span>
+              <span>Menú</span>
             </Link>
 
             <Link
@@ -125,8 +125,8 @@ export const Layout: React.FC = () => {
                 fontSize: '0.9rem',
               }}
             >
-              <Sparkles size={17} />
-              <span>Asistente AI</span>
+              <MessageSquare size={17} />
+              <span>Asistente</span>
             </Link>
 
             <Link

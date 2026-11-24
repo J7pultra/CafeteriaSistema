@@ -9,11 +9,26 @@ import DashboardPage from './pages/DashboardPage'
 import CatalogPage from './pages/CatalogPage'
 import OrdersPage from './pages/OrdersPage'
 import CustomersPage from './pages/CustomersPage'
-import SkillsAssistantPage from './pages/SkillsAssistantPage'
 import CustomerStorePage from './pages/CustomerStorePage'
 import CustomerOrdersPage from './pages/CustomerOrdersPage'
 import CustomerCartPage from './pages/CustomerCartPage'
 import ChatPage from './pages/ChatPage'
+import { useAuth } from './context/AuthContext'
+
+const RootRedirect: React.FC = () => {
+  const { user, isAuthenticated, hasRole } = useAuth()
+
+  if (isAuthenticated && user) {
+    if (hasRole('ROLE_ADMIN')) {
+      return <Navigate to="/dashboard" replace />
+    }
+    if (hasRole('ROLE_BARISTA')) {
+      return <Navigate to="/orders" replace />
+    }
+  }
+
+  return <CustomerStorePage />
+}
 
 export const App: React.FC = () => {
   return (
@@ -26,7 +41,7 @@ export const App: React.FC = () => {
           {/* Main App Layout */}
           <Route element={<Layout />}>
             {/* Public Visitor Routes (No Login Required) */}
-            <Route path="/" element={<CustomerStorePage />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/store" element={<CustomerStorePage />} />
             <Route path="/carritocliente" element={<CustomerCartPage />} />
             <Route path="/chat" element={<ChatPage />} />
@@ -40,7 +55,6 @@ export const App: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="ROLE_BARISTA" />}>
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
-              <Route path="/skills" element={<SkillsAssistantPage />} />
             </Route>
 
             {/* Admin-only Routes */}

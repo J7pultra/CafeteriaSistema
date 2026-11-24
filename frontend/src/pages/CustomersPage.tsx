@@ -73,9 +73,9 @@ export const CustomersPage: React.FC = () => {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Clientes & Programa de Lealtad</h1>
+          <h1 className="page-title">Clientes</h1>
           <p className="page-desc">
-            Seguimiento de membresías de café, beneficios y acumulación de puntos.
+            Seguimiento de clientes, nivel de fidelización y acumulación de puntos.
           </p>
         </div>
         <button

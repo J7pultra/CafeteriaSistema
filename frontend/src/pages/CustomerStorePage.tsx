@@ -6,18 +6,20 @@ import {
   Minus,
   Search,
   Filter,
+  Coffee,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import productService from '../services/productService'
 import customerService from '../services/customerService'
-import { RoastBadge, TierBadge } from '../components/common/Badge'
+import { CategoryBadge, TierBadge } from '../components/common/Badge'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import Alert from '../components/common/Alert'
 import type {
   Product,
   Customer,
   CustomerTier,
+  ProductCategory,
 } from '../types'
 
 const TIER_DISCOUNTS: Record<CustomerTier, number> = {
@@ -26,6 +28,16 @@ const TIER_DISCOUNTS: Record<CustomerTier, number> = {
   GOLD: 0.1,
   PLATINUM: 0.15,
 }
+
+const CATEGORY_FILTER_OPTIONS: { value: ProductCategory | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'Todas las Categorías' },
+  { value: 'HOT_BEVERAGES', label: 'Bebidas Calientes' },
+  { value: 'COLD_BEVERAGES', label: 'Bebidas Frías' },
+  { value: 'BAKERY', label: 'Repostería' },
+  { value: 'BREAKFAST', label: 'Desayunos' },
+  { value: 'SNACKS', label: 'Snacks' },
+  { value: 'OTHER', label: 'Otros' },
+]
 
 export const CustomerStorePage: React.FC = () => {
   const { user } = useAuth()
@@ -39,24 +51,18 @@ export const CustomerStorePage: React.FC = () => {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('ALL')
-  const [roastFilter, setRoastFilter] = useState('ALL')
-
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [error, setError] = useState<string | null>(null)
 
-  // Load products and customer profile
   useEffect(() => {
     const loadStoreData = async () => {
       setLoading(true)
       try {
-        // 1. Fetch real products from backend
         const prodRes = await productService.getProducts(0, 100).catch(() => ({
           content: [] as Product[],
         }))
         setProducts(prodRes?.content?.filter((p) => p.active) ?? [])
 
-        // 2. Fetch customer profile if authenticated
         if (user?.email) {
           const custRes = await customerService.getCustomerByEmail(user.email).catch(() => null)
           setCustomer(custRes)
@@ -64,7 +70,7 @@ export const CustomerStorePage: React.FC = () => {
           setCustomer(null)
         }
       } catch {
-        setError('No se pudo cargar la información de la tienda.')
+        setError('No se pudo cargar la información del menú.')
         setProducts([])
       } finally {
         setLoading(false)
@@ -77,19 +83,16 @@ export const CustomerStorePage: React.FC = () => {
   const discountRate = customer ? TIER_DISCOUNTS[customer.tier] : 0
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  // Filtered products
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase()) ||
-      (p.origin && p.origin.toLowerCase().includes(search.toLowerCase())) ||
       (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
     const matchesCat = categoryFilter === 'ALL' || p.category === categoryFilter
-    const matchesRoast = roastFilter === 'ALL' || p.roastLevel === roastFilter
-    return matchesSearch && matchesCat && matchesRoast
+    return matchesSearch && matchesCat
   })
 
-  if (loading) return <LoadingSpinner label="Preparando vitrina de cafés de especialidad..." />
+  if (loading) return <LoadingSpinner label="Cargando menú de cafetería..." />
 
   return (
     <div style={{ position: 'relative' }}>
@@ -115,7 +118,7 @@ export const CustomerStorePage: React.FC = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
               <h1 className="page-title" style={{ margin: 0 }}>
-                Cafés de Temporada & Mesa de Cata
+                Menú de Cafetería
               </h1>
               {customer && <TierBadge tier={customer.tier} />}
             </div>
@@ -126,18 +129,15 @@ export const CustomerStorePage: React.FC = () => {
                   <strong style={{ color: 'var(--text-primary)' }}>
                     {customer.firstName} {customer.lastName}
                   </strong>
-                  . Granos de especialidad tostados bajo demanda con beneficio de membresía.
+                  . Disfruta de nuestras bebidas y repostería con beneficios de cliente frecuente.
                 </>
               ) : (
-                <>
-                  Granos de origen seleccionados por altitud y proceso. Tueste artesanal bajo pedido.
-                </>
+                <>Bebidas calientes, frías y repostería artesanal preparadas al momento.</>
               )}
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Loyalty or Guest Tag */}
             {customer ? (
               <div
                 style={{
@@ -182,11 +182,11 @@ export const CustomerStorePage: React.FC = () => {
                   fontWeight: 500,
                 }}
               >
-                Compra Libre (Sin registro previo)
+                Compra Libre (Sin cuenta requerida)
               </div>
             )}
 
-            {/* Cart Trigger Button */}
+            {/* Cart Button */}
             <button
               onClick={() => navigate('/carritocliente')}
               className="btn btn-primary"
@@ -215,9 +215,6 @@ export const CustomerStorePage: React.FC = () => {
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-      {orderSuccess && (
-        <Alert type="success" message={orderSuccess} onClose={() => setOrderSuccess(null)} />
-      )}
 
       {/* Filter and Search Bar */}
       <div
@@ -242,9 +239,8 @@ export const CustomerStorePage: React.FC = () => {
           <input
             type="text"
             className="form-input"
-            data-sommelier-id="catalog-search-input"
             style={{ paddingLeft: '40px', width: '100%' }}
-            placeholder="Buscar por notas de cata (caramelo, jazmín), origen o nombre..."
+            placeholder="Buscar por nombre o descripción..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -257,24 +253,11 @@ export const CustomerStorePage: React.FC = () => {
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
-            <option value="ALL">Todas las Categorías</option>
-            <option value="SPECIALTY_BEANS">Granos de Especialidad</option>
-            <option value="ESPRESSO_SINGLE_ORIGIN">Espresso Origen Único</option>
-            <option value="COLD_BREW_BLEND">Mezcla / Cold Brew</option>
-            <option value="DECAF_ORGANIC">Descafeinado Orgánico</option>
-          </select>
-
-          <select
-            className="form-select"
-            value={roastFilter}
-            onChange={(e) => setRoastFilter(e.target.value)}
-          >
-            <option value="ALL">Todos los Tuestes</option>
-            <option value="LIGHT">Claro (Light)</option>
-            <option value="MEDIUM_LIGHT">Medio Claro</option>
-            <option value="MEDIUM">Medio (Medium)</option>
-            <option value="MEDIUM_DARK">Medio Oscuro</option>
-            <option value="DARK">Oscuro (Dark)</option>
+            {CATEGORY_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -297,12 +280,12 @@ export const CustomerStorePage: React.FC = () => {
               padding: '60px 20px',
             }}
           >
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>☕</div>
+            <Coffee size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.5 }} />
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>
-              No hay cafés disponibles en esta selección
+              No hay productos disponibles en esta selección
             </h3>
             <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto' }}>
-              El catálogo se encuentra limpio y listo para registrar nuevos lotes desde el panel de administración.
+              El catálogo se encuentra limpio y listo para el registro de nuevos productos desde el panel de administración.
             </p>
           </div>
         ) : (
@@ -312,16 +295,11 @@ export const CustomerStorePage: React.FC = () => {
             const isOutOfStock = p.stockQuantity <= 0
             const thumb =
               p.imageUrl ||
-              (p.roastLevel === 'LIGHT' || p.roastLevel === 'MEDIO_CLARO'
-                ? 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80'
-                : p.roastLevel === 'DARK'
-                ? 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=600&auto=format&fit=crop&q=80'
-                : 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&auto=format&fit=crop&q=80')
+              'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80'
 
             return (
               <div
                 key={p.id}
-                data-sommelier-id={`product-card-${p.id}`}
                 className="card"
                 style={{
                   display: 'flex',
@@ -333,7 +311,6 @@ export const CustomerStorePage: React.FC = () => {
                 }}
               >
                 <div>
-                  {/* Product Thumbnail Photo */}
                   <div
                     style={{
                       width: '100%',
@@ -341,7 +318,7 @@ export const CustomerStorePage: React.FC = () => {
                       borderRadius: 'var(--radius-sm)',
                       overflow: 'hidden',
                       marginBottom: '14px',
-                      backgroundColor: '#1b130e',
+                      backgroundColor: 'var(--bg-secondary)',
                       border: '1px solid var(--border-subtle)',
                     }}
                   >
@@ -357,7 +334,6 @@ export const CustomerStorePage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Badges Row */}
                   <div
                     style={{
                       display: 'flex',
@@ -366,7 +342,7 @@ export const CustomerStorePage: React.FC = () => {
                       marginBottom: '12px',
                     }}
                   >
-                    <RoastBadge roast={p.roastLevel} />
+                    <CategoryBadge category={p.category} />
                     <span
                       style={{
                         fontSize: '0.75rem',
@@ -374,11 +350,10 @@ export const CustomerStorePage: React.FC = () => {
                         color: isOutOfStock ? 'var(--accent-red)' : 'var(--text-muted)',
                       }}
                     >
-                      {isOutOfStock ? 'AGOTADO' : `${p.stockQuantity} kg disponibles`}
+                      {isOutOfStock ? 'AGOTADO' : `${p.stockQuantity} uds disponibles`}
                     </span>
                   </div>
 
-                  {/* Title & SKU */}
                   <h3
                     style={{
                       fontFamily: 'var(--font-serif)',
@@ -386,7 +361,6 @@ export const CustomerStorePage: React.FC = () => {
                       fontWeight: 600,
                       color: 'var(--text-primary)',
                       marginBottom: '4px',
-                      letterSpacing: '-0.01em',
                     }}
                   >
                     {p.name}
@@ -399,10 +373,9 @@ export const CustomerStorePage: React.FC = () => {
                       marginBottom: '10px',
                     }}
                   >
-                    📍 {p.origin || 'Terroir de Especialidad'} • SKU: {p.sku}
+                    SKU: {p.sku}
                   </div>
 
-                  {/* Tasting notes / Description */}
                   <p
                     style={{
                       fontSize: '0.84rem',
@@ -412,95 +385,85 @@ export const CustomerStorePage: React.FC = () => {
                       minHeight: '38px',
                     }}
                   >
-                    {p.description || 'Café seleccionado a mano con perfil sensorial equilibrado.'}
+                    {p.description || 'Producto preparado con ingredientes selectos de la más alta calidad.'}
                   </p>
+                </div>
 
-                  {p.flavorNotes && (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                      {p.flavorNotes.split(',').map((note, idx) => (
-                        <span key={idx} className="flavor-chip">
-                          {note.trim()}
-                        </span>
-                      ))}
+                <div
+                  style={{
+                    borderTop: '1px solid var(--border-color)',
+                    paddingTop: '14px',
+                    marginTop: '10px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Precio unitario</div>
+                    <div
+                      style={{
+                        fontSize: '1.3rem',
+                        fontWeight: 800,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      ${unitPrice.toFixed(2)}
                     </div>
+                  </div>
+
+                  {inCart ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: 'rgba(212, 163, 115, 0.15)',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      <button
+                        onClick={() => updateQuantity(p.id, -1)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px' }}
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span style={{ fontWeight: 700, minWidth: '20px', textAlign: 'center' }}>
+                        {inCart.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(p.id, 1)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px' }}
+                        disabled={inCart.quantity >= p.stockQuantity}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => addToCart(p)}
+                      disabled={isOutOfStock}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <ShoppingBag size={15} />
+                      {isOutOfStock ? 'Sin Stock' : 'Agregar'}
+                    </button>
                   )}
                 </div>
-
-              {/* Price & Add to Cart */}
-              <div
-                style={{
-                  borderTop: '1px solid var(--border-color)',
-                  paddingTop: '14px',
-                  marginTop: '10px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Precio / kg</div>
-                  <div
-                    style={{
-                      fontSize: '1.3rem',
-                      fontWeight: 800,
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    ${unitPrice.toFixed(2)}
-                  </div>
-                </div>
-
-                {inCart ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backgroundColor: 'rgba(212, 163, 115, 0.15)',
-                      padding: '4px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
-                  >
-                    <button
-                      onClick={() => updateQuantity(p.id, -1)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '4px 8px' }}
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span style={{ fontWeight: 700, minWidth: '20px', textAlign: 'center' }}>
-                      {inCart.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(p.id, 1)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '4px 8px' }}
-                      disabled={inCart.quantity >= p.stockQuantity}
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => addToCart(p)}
-                    disabled={isOutOfStock}
-                    className="btn btn-primary"
-                    style={{
-                      padding: '8px 14px',
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <ShoppingBag size={15} />
-                    {isOutOfStock ? 'Sin Stock' : 'Agregar'}
-                  </button>
-                )}
               </div>
-            </div>
-          )
-        }))}
+            )
+          })
+        )}
       </div>
     </div>
   )

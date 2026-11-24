@@ -1,39 +1,63 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Coffee, Lock, User, ArrowRight } from 'lucide-react'
+import { Coffee, Lock, User, Mail, ArrowRight, UserPlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Alert from '../components/common/Alert'
 
 export const LoginPage: React.FC = () => {
+  const [isRegister, setIsRegister] = useState(false)
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { login } = useAuth()
+  const { login, register } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(null)
     setIsSubmitting(true)
+
     try {
-      const res = await login({ username, password })
-      const roles = res?.roles || []
-      if (roles.includes('ROLE_ADMIN')) {
-        navigate('/dashboard')
-      } else if (roles.includes('ROLE_BARISTA')) {
-        navigate('/orders')
+      if (isRegister) {
+        if (!email.trim() || !username.trim() || !password.trim()) {
+          setError('Todos los campos son obligatorios para el registro.')
+          setIsSubmitting(false)
+          return
+        }
+        await register({ username, email, password })
+        setSuccess('¡Cuenta de cliente creada exitosamente! Redirigiendo...')
+        setTimeout(() => {
+          navigate('/store')
+        }, 800)
       } else {
-        navigate('/store')
+        const res = await login({ username, password })
+        const roles = res?.roles || []
+        if (roles.includes('ROLE_ADMIN')) {
+          navigate('/dashboard')
+        } else if (roles.includes('ROLE_BARISTA')) {
+          navigate('/orders')
+        } else {
+          navigate('/store')
+        }
       }
-    } catch {
-      setError('Credenciales inválidas. Por favor verifique usuario y contraseña.')
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        (isRegister
+          ? (err?.message || 'Error al crear la cuenta. Verifica que el usuario o correo no existan.')
+          : 'Credenciales inválidas. Por favor verifique usuario y contraseña.')
+      setError(msg)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleQuickLogin = (u: string, p: string) => {
+    setIsRegister(false)
     setUsername(u)
     setPassword(p)
   }
@@ -59,7 +83,7 @@ export const LoginPage: React.FC = () => {
           borderColor: 'var(--border-color)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
             style={{
               width: '54px',
@@ -79,16 +103,77 @@ export const LoginPage: React.FC = () => {
             Sistema Café
           </h1>
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Acceso a la plataforma de gestión & ventas
+            {isRegister
+              ? 'Registro de clientes y beneficios de lealtad'
+              : 'Acceso a la plataforma de gestión & ventas'}
           </p>
         </div>
 
+        {/* Tab switch between Login and Register */}
+        <div
+          style={{
+            display: 'flex',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '4px',
+            marginBottom: '20px',
+            border: '1px solid var(--border-color)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(false)
+              setError(null)
+              setSuccess(null)
+            }}
+            style={{
+              flex: 1,
+              padding: '8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.85rem',
+              fontWeight: !isRegister ? 700 : 500,
+              backgroundColor: !isRegister ? 'var(--accent-gold)' : 'transparent',
+              color: !isRegister ? '#14110E' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Iniciar Sesión
+          </button>
+          <button
+            type="button"
+            data-testid="tab-register-btn"
+            onClick={() => {
+              setIsRegister(true)
+              setError(null)
+              setSuccess(null)
+            }}
+            style={{
+              flex: 1,
+              padding: '8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.85rem',
+              fontWeight: isRegister ? 700 : 500,
+              backgroundColor: isRegister ? 'var(--accent-gold)' : 'transparent',
+              color: isRegister ? '#14110E' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            Registrarse
+          </button>
+        </div>
+
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+        {success && <Alert type="success" message={success} onClose={() => setSuccess(null)} />}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="username">
-              Usuario o Correo
+              Usuario
             </label>
             <div style={{ position: 'relative' }}>
               <User
@@ -108,6 +193,31 @@ export const LoginPage: React.FC = () => {
               />
             </div>
           </div>
+
+          {isRegister && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">
+                Correo Electrónico
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail
+                  size={18}
+                  color="var(--text-muted)"
+                  style={{ position: 'absolute', left: '12px', top: '12px' }}
+                />
+                <input
+                  id="email"
+                  type="email"
+                  className="form-input"
+                  style={{ paddingLeft: '40px', width: '100%' }}
+                  placeholder="ej. cliente@sistemacafe.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required={isRegister}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="form-group" style={{ marginBottom: '24px' }}>
             <label className="form-label" htmlFor="password">
@@ -137,16 +247,46 @@ export const LoginPage: React.FC = () => {
             className="btn btn-primary"
             style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
             disabled={isSubmitting}
+            data-testid="auth-submit-btn"
           >
-            {isSubmitting ? 'Iniciando sesión...' : 'Ingresar al Sistema'}
-            <ArrowRight size={18} />
+            {isSubmitting
+              ? isRegister
+                ? 'Registrando cuenta...'
+                : 'Iniciando sesión...'
+              : isRegister
+              ? 'Crear Cuenta de Cliente'
+              : 'Ingresar al Sistema'}
+            {isRegister ? <UserPlus size={18} /> : <ArrowRight size={18} />}
           </button>
         </form>
 
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(!isRegister)
+              setError(null)
+              setSuccess(null)
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--accent-gold)',
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            {isRegister
+              ? '¿Ya tienes una cuenta? Inicia sesión aquí'
+              : '¿Eres un cliente nuevo? Regístrate aquí'}
+          </button>
+        </div>
+
         <div
           style={{
-            marginTop: '28px',
-            paddingTop: '20px',
+            marginTop: '24px',
+            paddingTop: '16px',
             borderTop: '1px solid var(--border-subtle)',
             fontSize: '0.8rem',
             color: 'var(--text-muted)',

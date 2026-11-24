@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../context/AuthContext'
+import { CartProvider } from '../context/CartContext'
 import CustomerStorePage from '../pages/CustomerStorePage'
 import productService from '../services/productService'
 import customerService from '../services/customerService'
-import orderService from '../services/orderService'
 
 vi.mock('../services/productService', () => ({
   default: {
@@ -16,13 +16,6 @@ vi.mock('../services/productService', () => ({
 vi.mock('../services/customerService', () => ({
   default: {
     getCustomerByEmail: vi.fn(),
-  },
-}))
-
-vi.mock('../services/orderService', () => ({
-  default: {
-    createOrder: vi.fn(),
-    guestCheckout: vi.fn(),
   },
 }))
 
@@ -46,13 +39,11 @@ describe('CustomerStorePage Component', () => {
       content: [
         {
           id: 1,
-          sku: 'COF-COL-MED',
-          name: 'Café Colombia Huila Supremo',
-          description: 'Notas de caramelo y chocolate negro.',
-          origin: 'Huila, Colombia',
-          roastLevel: 'MEDIUM',
-          category: 'ESPRESSO_SINGLE_ORIGIN',
-          unitPrice: 18.5,
+          sku: 'BEB-CAP-001',
+          name: 'Cappuccino Vainilla',
+          description: 'Café cappuccino con toque suave de vainilla.',
+          category: 'HOT_BEVERAGES',
+          unitPrice: 3.8,
           stockQuantity: 40,
           active: true,
         },
@@ -74,103 +65,45 @@ describe('CustomerStorePage Component', () => {
     })
   })
 
-  it('renders customer greeting, tier badge, and available coffees', async () => {
+  it('renders customer greeting, tier badge, and available products', async () => {
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <CustomerStorePage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <CustomerStorePage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     )
 
     await waitFor(() => {
-      expect(screen.getByText(/Cafés de Temporada & Mesa de Cata/i)).toBeInTheDocument()
-      expect(screen.getByText('Café Colombia Huila Supremo')).toBeInTheDocument()
-      expect(screen.getByText('$18.50')).toBeInTheDocument()
+      expect(screen.getByText(/Menú de Cafetería/i)).toBeInTheDocument()
+      expect(screen.getByText('Cappuccino Vainilla')).toBeInTheDocument()
+      expect(screen.getByText('$3.80')).toBeInTheDocument()
       expect(screen.getByText(/340 pts/i)).toBeInTheDocument()
     })
   })
 
-  it('adds coffee to cart, opens cart drawer, and displays discount', async () => {
+  it('adds item to cart and updates cart button count', async () => {
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <CustomerStorePage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <CustomerStorePage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Café Colombia Huila Supremo')).toBeInTheDocument()
+      expect(screen.getByText('Cappuccino Vainilla')).toBeInTheDocument()
     })
 
-    // Click "Agregar"
     const addBtn = screen.getByRole('button', { name: /Agregar/i })
     fireEvent.click(addBtn)
 
-    // Open Cart Drawer
     const cartBtn = screen.getByTestId('cart-drawer-btn')
-    fireEvent.click(cartBtn)
-
-    await waitFor(() => {
-      expect(screen.getByText('Carrito de Compras')).toBeInTheDocument()
-      expect(screen.getByText(/Subtotal:/i)).toBeInTheDocument()
-      expect(screen.getByText(/Descuento Lealtad/i)).toBeInTheDocument()
-    })
-  })
-
-  it('opens simulated billing invoice modal and processes order', async () => {
-    vi.mocked(orderService.createOrder).mockResolvedValueOnce({
-      id: 99,
-      orderNumber: 'ORD-2026-7777',
-      customerId: 1,
-      items: [],
-      status: 'CONFIRMADO',
-      paymentMethod: 'TARJETA_CREDITO',
-      subtotal: 18.5,
-      discount: 1.85,
-      tax: 1.66,
-      total: 18.31,
-      createdAt: new Date().toISOString(),
-    })
-
-    render(
-      <AuthProvider>
-        <MemoryRouter>
-          <CustomerStorePage />
-        </MemoryRouter>
-      </AuthProvider>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Café Colombia Huila Supremo')).toBeInTheDocument()
-    })
-
-    // Add to cart
-    fireEvent.click(screen.getByRole('button', { name: /Agregar/i }))
-
-    // Open Cart Drawer
-    fireEvent.click(screen.getByTestId('cart-drawer-btn'))
-
-    // Click "Simular Facturación & Pago"
-    await waitFor(() => {
-      expect(screen.getByTestId('proceed-billing-btn')).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByTestId('proceed-billing-btn'))
-
-    // Verify Invoice modal is displayed
-    await waitFor(() => {
-      expect(screen.getByText(/SISTEMA CAFÉ ENTERPRISE S.A.S./i)).toBeInTheDocument()
-      expect(screen.getByText(/TOTAL A FACTURAR:/i)).toBeInTheDocument()
-    })
-
-    // Click confirm simulation
-    const confirmBtn = screen.getByTestId('confirm-simulation-btn')
-    fireEvent.click(confirmBtn)
-
-    await waitFor(() => {
-      expect(orderService.createOrder).toHaveBeenCalled()
-      expect(screen.getByText(/¡Pedido confirmado con éxito!/i)).toBeInTheDocument()
-    })
+    expect(cartBtn).toBeInTheDocument()
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1)
   })
 })
