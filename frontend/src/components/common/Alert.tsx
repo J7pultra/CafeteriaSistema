@@ -37,6 +37,7 @@ export const Alert: React.FC<AlertProps> = ({ type = 'info', message, onClose })
 
   return (
     <div
+      className="alert-animate"
       style={{
         display: 'flex',
         alignItems: 'center',

@@ -13,10 +13,6 @@ import useSommelierActionDispatcher from '../../hooks/useSommelierActionDispatch
 
 export const FloatingChatWidget: React.FC = () => {
   const location = useLocation()
-  if (location.pathname === '/chat') {
-    return null
-  }
-
   const { user } = useAuth()
   const { cart, addToCart } = useCart()
   const [isOpen, setIsOpen] = useState(false)
@@ -180,6 +176,10 @@ export const FloatingChatWidget: React.FC = () => {
     ])
   }
 
+  if (location.pathname === '/chat') {
+    return null
+  }
+
   return (
     <div
       style={{
@@ -196,6 +196,7 @@ export const FloatingChatWidget: React.FC = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
+          className="chat-trigger-pulse"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -209,10 +210,10 @@ export const FloatingChatWidget: React.FC = () => {
             cursor: 'pointer',
             fontWeight: 600,
             fontSize: '0.88rem',
-            transition: 'transform 0.2s, box-shadow 0.2s',
+            transition: 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0) scale(1)')}
           data-testid="floating-chat-trigger"
         >
           <MessageSquare size={17} />
@@ -223,6 +224,7 @@ export const FloatingChatWidget: React.FC = () => {
       {/* Ventana de chat adaptada al rol */}
       {isOpen && (
         <div
+          className="chat-window-pop"
           style={{
             width: '380px',
             height: '520px',
@@ -320,9 +322,14 @@ export const FloatingChatWidget: React.FC = () => {
           >
             {messages.map((m) => {
               const isUser = m.sender === 'user'
-              return (
+              if (location.pathname === '/chat') {
+    return null
+  }
+
+  return (
                 <div
                   key={m.id}
+                  className={isUser ? 'chat-bubble-user' : 'chat-bubble-assistant'}
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
@@ -338,11 +345,19 @@ export const FloatingChatWidget: React.FC = () => {
                   <div style={{ whiteSpace: 'pre-wrap' }}>
                     {m.text.split('\n').map((line, lIdx, arr) => {
                       const parts = line.split(/(`[^`]+`)/g)
-                      return (
+                      if (location.pathname === '/chat') {
+    return null
+  }
+
+  return (
                         <React.Fragment key={lIdx}>
                           {parts.map((p, pIdx) => {
                             if (p.startsWith('`') && p.endsWith('`')) {
-                              return (
+                              if (location.pathname === '/chat') {
+    return null
+  }
+
+  return (
                                 <code
                                   key={pIdx}
                                   style={{
@@ -377,8 +392,26 @@ export const FloatingChatWidget: React.FC = () => {
               )
             })}
             {loading && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--accent-gold)', padding: '6px' }}>
-                Consultando sistema...
+              <div
+                className="chat-bubble-assistant"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.78rem',
+                  color: 'var(--accent-gold)',
+                  padding: '8px 12px',
+                  backgroundColor: 'rgba(255,255,255,0.04)',
+                  borderRadius: '12px',
+                  alignSelf: 'flex-start',
+                }}
+              >
+                <span style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </span>
+                <span>Consultando sistema...</span>
               </div>
             )}
             <div ref={messagesEndRef} />

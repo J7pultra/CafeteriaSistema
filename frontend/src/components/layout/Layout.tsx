@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Coffee, LogIn, MessageSquare, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -7,11 +7,24 @@ import Sidebar from './Sidebar'
 import Navbar from './Navbar'
 import FloatingChatWidget from '../common/FloatingChatWidget'
 import SommelierHighlighter from '../common/SommelierHighlighter'
+import CartDrawer from '../common/CartDrawer'
+import FlyingCartOverlay from '../common/FlyingCartOverlay'
 
 export const Layout: React.FC = () => {
   const { isAuthenticated } = useAuth()
-  const { totalCount } = useCart()
+  const { totalCount, openCart, lastAddedAt } = useCart()
   const location = useLocation()
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [guestCartBump, setGuestCartBump] = useState(false)
+
+  useEffect(() => {
+    if (lastAddedAt > 0) {
+      setGuestCartBump(true)
+      const timer = window.setTimeout(() => setGuestCartBump(false), 600)
+      return () => window.clearTimeout(timer)
+    }
+  }, [lastAddedAt])
 
   if (!isAuthenticated) {
     return (
@@ -20,7 +33,8 @@ export const Layout: React.FC = () => {
         <header
           style={{
             height: '70px',
-            backgroundColor: 'var(--bg-secondary)',
+            backgroundColor: 'rgba(20, 18, 17, 0.92)',
+            backdropFilter: 'blur(10px)',
             borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
@@ -33,6 +47,7 @@ export const Layout: React.FC = () => {
         >
           <Link
             to="/store"
+            className="nav-link-animated"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -41,14 +56,11 @@ export const Layout: React.FC = () => {
             }}
           >
             <div
+              className="brand-icon"
               style={{
                 width: '40px',
                 height: '40px',
-                borderRadius: 'var(--radius-sm)',
                 backgroundColor: 'var(--accent-gold)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 color: '#1a120c',
               }}
             >
@@ -68,6 +80,7 @@ export const Layout: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <Link
               to="/store"
+              className="nav-link-animated"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -82,13 +95,15 @@ export const Layout: React.FC = () => {
               <span>Menú</span>
             </Link>
 
-            <Link
-              to="/carritocliente"
+            <button
+              type="button"
+              onClick={openCart}
+              data-testid="guest-cart-link"
+              className={`nav-link-animated ${guestCartBump ? 'cart-bump' : ''}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                textDecoration: 'none',
                 color: location.pathname === '/carritocliente' ? 'var(--accent-gold)' : 'var(--text-secondary)',
                 fontWeight: 600,
                 fontSize: '0.9rem',
@@ -99,6 +114,8 @@ export const Layout: React.FC = () => {
               <span>Mi Carrito</span>
               {totalCount > 0 && (
                 <span
+                  key={totalCount}
+                  className="badge-pop"
                   style={{
                     backgroundColor: 'var(--accent-gold)',
                     color: '#1a120c',
@@ -111,10 +128,11 @@ export const Layout: React.FC = () => {
                   {totalCount}
                 </span>
               )}
-            </Link>
+            </button>
 
             <Link
               to="/chat"
+              className="nav-link-animated"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -147,9 +165,13 @@ export const Layout: React.FC = () => {
 
         {/* Guest Main Content */}
         <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px' }}>
-          <Outlet />
+          <div key={location.pathname} className="page-transition-enter">
+            <Outlet />
+          </div>
         </main>
 
+        <CartDrawer />
+        <FlyingCartOverlay />
         <FloatingChatWidget />
         <SommelierHighlighter />
       </div>
@@ -158,13 +180,26 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+      />
       <div className="main-content">
-        <Navbar />
+        <Navbar
+          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
+          onToggleDesktopSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
         <main className="page-container">
-          <Outlet />
+          <div key={location.pathname} className="page-transition-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
+      <CartDrawer />
+      <FlyingCartOverlay />
       <FloatingChatWidget />
       <SommelierHighlighter />
     </div>

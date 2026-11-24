@@ -216,7 +216,7 @@ export const ChatPage: React.FC = () => {
             className="badge badge-green"
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-green)' }} />
+            <span className="pulse-dot-green" />
             En Línea
           </span>
           <button
@@ -246,6 +246,7 @@ export const ChatPage: React.FC = () => {
             key={idx}
             onClick={() => handleSend(sug)}
             disabled={loading}
+            className={`animate-stagger stagger-${Math.min(idx + 1, 12)}`}
             style={{
               padding: '6px 12px',
               borderRadius: '20px',
@@ -292,6 +293,7 @@ export const ChatPage: React.FC = () => {
           return (
             <div
               key={msg.id}
+              className={isUser ? 'chat-bubble-user' : 'chat-bubble-assistant'}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -453,6 +455,7 @@ export const ChatPage: React.FC = () => {
 
         {loading && (
           <div
+            className="chat-bubble-assistant"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -462,7 +465,12 @@ export const ChatPage: React.FC = () => {
               padding: '10px',
             }}
           >
-            <Coffee size={16} color="var(--accent-gold)" className="animate-spin" />
+            <Coffee size={16} color="var(--accent-gold)" className="spin" />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </span>
             <span>Consultando información...</span>
           </div>
         )}

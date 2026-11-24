@@ -250,25 +250,44 @@ export const CatalogPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((p) => {
+                {filteredProducts.map((p, idx) => {
                   const isCritical = p.stockQuantity <= 10
                   const thumb =
                     p.imageUrl ||
                     'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&auto=format&fit=crop&q=80'
                   return (
-                    <tr key={p.id}>
+                    <tr
+                      key={p.id}
+                      className="animate-row"
+                      style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}
+                    >
                       <td>
-                        <img
-                          src={thumb}
-                          alt={p.name}
+                        <div
                           style={{
                             width: '44px',
                             height: '44px',
                             borderRadius: '8px',
-                            objectFit: 'cover',
+                            overflow: 'hidden',
                             border: '1px solid var(--border-subtle)',
                           }}
-                        />
+                        >
+                          <img
+                            src={thumb}
+                            alt={p.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.12)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)'
+                            }}
+                          />
+                        </div>
                       </td>
                       <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>{p.sku}</td>
                       <td>
@@ -296,7 +315,11 @@ export const CatalogPage: React.FC = () => {
                             {p.stockQuantity} uds
                           </span>
                           {isCritical && (
-                            <span title="Stock bajo">
+                            <span
+                              title="Stock bajo"
+                              className="badge-pop stepper-node-active"
+                              style={{ display: 'inline-flex', borderRadius: '50%' }}
+                            >
                               <AlertCircle size={16} color="var(--accent-red)" />
                             </span>
                           )}

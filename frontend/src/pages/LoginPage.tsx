@@ -71,20 +71,46 @@ export const LoginPage: React.FC = () => {
         justifyContent: 'center',
         backgroundColor: 'var(--bg-primary)',
         padding: '20px',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
       <div
-        className="card"
+        className="login-ambient-orb"
+        style={{
+          width: '340px',
+          height: '340px',
+          top: '-80px',
+          left: '-60px',
+          background: 'rgba(212, 163, 115, 0.14)',
+        }}
+      />
+      <div
+        className="login-ambient-orb"
+        style={{
+          width: '380px',
+          height: '380px',
+          bottom: '-100px',
+          right: '-80px',
+          background: 'rgba(200, 141, 77, 0.1)',
+          animationDelay: '-4.5s',
+        }}
+      />
+      <div
+        className="card page-transition-enter"
         style={{
           maxWidth: '440px',
           width: '100%',
           padding: '36px',
           boxShadow: 'var(--shadow-lg)',
           borderColor: 'var(--border-color)',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
+            className="float-slow"
             style={{
               width: '54px',
               height: '54px',
@@ -195,7 +221,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {isRegister && (
-            <div className="form-group">
+            <div className="form-group alert-animate">
               <label className="form-label" htmlFor="email">
                 Correo Electrónico
               </label>

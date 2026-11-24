@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   ShoppingBag,
   Plus,
@@ -41,11 +40,14 @@ const CATEGORY_FILTER_OPTIONS: { value: ProductCategory | 'ALL'; label: string }
 
 export const CustomerStorePage: React.FC = () => {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const {
     cart,
     addToCart,
     updateQuantity,
+    openCart,
+    lastAddedAt,
+    lastAddedProductId,
+    triggerFlyToCart,
   } = useCart()
   const [products, setProducts] = useState<Product[]>([])
   const [customer, setCustomer] = useState<Customer | null>(null)
@@ -53,6 +55,24 @@ export const CustomerStorePage: React.FC = () => {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [error, setError] = useState<string | null>(null)
+  const [cartBumpActive, setCartBumpActive] = useState(false)
+  const [justAddedMap, setJustAddedMap] = useState<Record<number, number>>({})
+
+  useEffect(() => {
+    if (lastAddedAt > 0) {
+      setCartBumpActive(true)
+      if (lastAddedProductId) {
+        setJustAddedMap((prev) => ({ ...prev, [lastAddedProductId]: lastAddedAt }))
+      }
+      const timer = window.setTimeout(() => setCartBumpActive(false), 620)
+      return () => window.clearTimeout(timer)
+    }
+  }, [lastAddedAt, lastAddedProductId])
+
+  const handleAnimatedAdd = (p: Product, e: React.MouseEvent<HTMLElement>) => {
+    triggerFlyToCart(e.currentTarget, p.imageUrl, p.name)
+    addToCart(p, 1)
+  }
 
   useEffect(() => {
     const loadStoreData = async () => {
@@ -188,8 +208,8 @@ export const CustomerStorePage: React.FC = () => {
 
             {/* Cart Button */}
             <button
-              onClick={() => navigate('/carritocliente')}
-              className="btn btn-primary"
+              onClick={openCart}
+              className={`btn btn-primary ${cartBumpActive ? 'cart-bump' : ''}`}
               style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}
               data-testid="cart-drawer-btn"
             >
@@ -197,6 +217,8 @@ export const CustomerStorePage: React.FC = () => {
               <span>Mi Carrito</span>
               {totalCartCount > 0 && (
                 <span
+                  key={totalCartCount}
+                  className={cartBumpActive ? 'badge-pop' : ''}
                   style={{
                     backgroundColor: 'var(--accent-red)',
                     color: '#fff',
@@ -289,10 +311,13 @@ export const CustomerStorePage: React.FC = () => {
             </p>
           </div>
         ) : (
-          filteredProducts.map((p) => {
+          filteredProducts.map((p, idx) => {
             const unitPrice = Number(p.unitPrice ?? p.price ?? 0)
             const inCart = cart.find((item) => item.product.id === p.id)
             const isOutOfStock = p.stockQuantity <= 0
+            const flashKey = justAddedMap[p.id]
+            const isRecentlyAdded = Boolean(flashKey && Date.now() - flashKey < 900)
+            const staggerClass = `stagger-${Math.min(idx + 1, 12)}`
             const thumb =
               p.imageUrl ||
               'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80'
@@ -300,16 +325,22 @@ export const CustomerStorePage: React.FC = () => {
             return (
               <div
                 key={p.id}
-                className="card"
+                id={`product-card-${p.id}`}
+                data-sommelier-id={`product-card-${p.id}`}
+                className={`card animate-stagger ${staggerClass} product-card-interactive ${isRecentlyAdded ? 'card-added-flash' : ''}`}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
                   border: inCart ? '1px solid var(--accent-gold)' : '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-card)',
                 }}
               >
+                {flashKey && (
+                  <span key={flashKey} className="floating-plus-one">
+                    +1 Al carrito
+                  </span>
+                )}
                 <div>
                   <div
                     style={{
@@ -325,6 +356,7 @@ export const CustomerStorePage: React.FC = () => {
                     <img
                       src={thumb}
                       alt={p.name}
+                      className="product-thumb-img"
                       style={{
                         width: '100%',
                         height: '100%',
@@ -414,6 +446,7 @@ export const CustomerStorePage: React.FC = () => {
 
                   {inCart ? (
                     <div
+                      className="badge-pop"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -430,11 +463,18 @@ export const CustomerStorePage: React.FC = () => {
                       >
                         <Minus size={14} />
                       </button>
-                      <span style={{ fontWeight: 700, minWidth: '20px', textAlign: 'center' }}>
+                      <span
+                        key={inCart.quantity}
+                        className="badge-pop"
+                        style={{ fontWeight: 700, minWidth: '20px', textAlign: 'center' }}
+                      >
                         {inCart.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(p.id, 1)}
+                        onClick={(e) => {
+                          triggerFlyToCart(e.currentTarget, p.imageUrl, p.name)
+                          updateQuantity(p.id, 1)
+                        }}
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '4px 8px' }}
                         disabled={inCart.quantity >= p.stockQuantity}
@@ -444,7 +484,7 @@ export const CustomerStorePage: React.FC = () => {
                     </div>
                   ) : (
                     <button
-                      onClick={() => addToCart(p)}
+                      onClick={(e) => handleAnimatedAdd(p, e)}
                       disabled={isOutOfStock}
                       className="btn btn-primary"
                       style={{

@@ -15,6 +15,7 @@ import Alert from '../components/common/Alert'
 import { TierBadge, CategoryBadge } from '../components/common/Badge'
 import dashboardService from '../services/dashboardService'
 import productService from '../services/productService'
+import useCountUp from '../hooks/useCountUp'
 import type { DashboardMetrics, Product, CustomerTier } from '../types'
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -82,6 +83,11 @@ export const DashboardPage: React.FC = () => {
     loadData()
   }, [])
 
+  const animatedRevenue = useCountUp(Number(metrics?.totalRevenue ?? 0), 650)
+  const animatedOrders = useCountUp(Number(metrics?.totalOrders ?? 0), 550)
+  const animatedWeeklyCustomers = useCountUp(Number(metrics?.weeklyNewCustomers ?? 0), 500)
+  const animatedLowStock = useCountUp(Number(metrics?.lowStockCount ?? 0), 450)
+
   if (loading) {
     return <LoadingSpinner label="Cargando métricas de cafetería en tiempo real..." />
   }
@@ -126,41 +132,45 @@ export const DashboardPage: React.FC = () => {
       <div className="stats-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Ingresos Totales"
-          value={`$${Number(metrics?.totalRevenue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={`$${animatedRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle="Facturación acumulada (órdenes válidas)"
           icon={<DollarSign size={20} color="var(--accent-green)" />}
           iconBg="var(--accent-green-soft)"
+          staggerClass="stagger-1"
         />
 
         <StatCard
           title="Órdenes Procesadas"
-          value={metrics?.totalOrders ?? 0}
+          value={Math.round(animatedOrders)}
           subtitle={`${metrics?.activeOrders ?? 0} órdenes activas`}
           icon={<TrendingUp size={20} color="var(--accent-gold)" />}
           iconBg="var(--accent-gold-soft)"
+          staggerClass="stagger-2"
         />
 
         <StatCard
           title="Clientes Nuevos Semanales"
-          value={metrics?.weeklyNewCustomers ?? 0}
+          value={Math.round(animatedWeeklyCustomers)}
           subtitle="Registrados en los últimos 7 días"
           icon={<UserPlus size={20} color="var(--accent-blue)" />}
           iconBg="var(--accent-blue-soft)"
+          staggerClass="stagger-3"
         />
 
         <StatCard
           title="Stock Bajo"
-          value={metrics?.lowStockCount ?? 0}
+          value={Math.round(animatedLowStock)}
           subtitle="Productos con <= 10 uds"
           icon={<AlertTriangle size={20} color="var(--accent-red)" />}
           iconBg="var(--accent-red-soft)"
+          staggerClass="stagger-4"
         />
       </div>
 
       {/* Analytics Breakdown Grid */}
       <div className="dashboard-grid">
         {/* Sales by Cafeteria Category */}
-        <div className="card">
+        <div className="card animate-stagger stagger-5">
           <div className="card-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Coffee size={20} color="var(--accent-gold)" />
@@ -204,12 +214,13 @@ export const DashboardPage: React.FC = () => {
                       }}
                     >
                       <div
+                        className="progress-bar-fill-animate"
                         style={{
                           width: `${percent}%`,
                           height: '100%',
                           backgroundColor: 'var(--accent-gold)',
                           borderRadius: '4px',
-                          transition: 'width 0.4s ease',
+                          transition: 'width 0.5s ease',
                         }}
                       />
                     </div>
@@ -221,7 +232,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Customer Loyalty Tier Distribution */}
-        <div className="card">
+        <div className="card animate-stagger stagger-6">
           <div className="card-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Award size={20} color="var(--accent-blue)" />
@@ -231,9 +242,10 @@ export const DashboardPage: React.FC = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {metrics?.customersByTier &&
-              Object.entries(metrics.customersByTier).map(([tier, count]) => (
+              Object.entries(metrics.customersByTier).map(([tier, count], idx) => (
                 <div
                   key={tier}
+                  className={`animate-stagger stagger-${Math.min(idx + 5, 12)}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -242,6 +254,7 @@ export const DashboardPage: React.FC = () => {
                     borderRadius: 'var(--radius-sm)',
                     backgroundColor: 'var(--bg-secondary)',
                     border: '1px solid var(--border-subtle)',
+                    transition: 'transform 0.22s ease, border-color 0.22s ease',
                   }}
                 >
                   <TierBadge tier={tier as CustomerTier} />
@@ -255,7 +268,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Low Stock Inventory Table */}
-      <div className="card" style={{ marginTop: '24px' }}>
+      <div className="card animate-stagger stagger-7" style={{ marginTop: '24px' }}>
         <div className="card-title">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Package size={20} color="var(--accent-red)" />
@@ -282,8 +295,12 @@ export const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {lowStockProducts.map((p) => (
-                  <tr key={p.id}>
+                {lowStockProducts.map((p, idx) => (
+                  <tr
+                    key={p.id}
+                    className="animate-row"
+                    style={{ animationDelay: `${Math.min(idx * 0.05, 0.5)}s` }}
+                  >
                     <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>{p.sku}</td>
                     <td>{p.name}</td>
                     <td>

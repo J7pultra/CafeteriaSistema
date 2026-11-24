@@ -163,6 +163,7 @@ export const CustomerCartPage: React.FC = () => {
           }}
         >
           <div
+            className="badge-pop"
             style={{
               width: '72px',
               height: '72px',
@@ -174,6 +175,7 @@ export const CustomerCartPage: React.FC = () => {
               justifyContent: 'center',
               margin: '0 auto 20px',
               color: 'var(--accent-green)',
+              boxShadow: '0 0 24px rgba(34, 197, 94, 0.3)',
             }}
           >
             <CheckCircle2 size={40} />
@@ -247,6 +249,7 @@ export const CustomerCartPage: React.FC = () => {
           }}
         >
           <div
+            className="float-slow"
             style={{
               width: '80px',
               height: '80px',
@@ -361,7 +364,18 @@ export const CustomerCartPage: React.FC = () => {
                         <img
                           src={item.product.imageUrl}
                           alt={item.product.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.1)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)'
+                          }}
                         />
                       ) : (
                         <Coffee size={32} color="var(--accent-gold)" style={{ opacity: 0.6 }} />
@@ -391,7 +405,11 @@ export const CustomerCartPage: React.FC = () => {
                       >
                         <Minus size={14} />
                       </button>
-                      <span style={{ fontWeight: 800, fontSize: '0.95rem', minWidth: '24px', textAlign: 'center' }}>
+                      <span
+                        key={item.quantity}
+                        className="badge-pop"
+                        style={{ fontWeight: 800, fontSize: '0.95rem', minWidth: '24px', textAlign: 'center', display: 'inline-block' }}
+                      >
                         {item.quantity}
                       </span>
                       <button
@@ -427,7 +445,7 @@ export const CustomerCartPage: React.FC = () => {
         </div>
 
         {/* Columna Derecha: Resumen Financiero y Formulario de Facturación */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="animate-stagger stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Resumen Financiero */}
           <div
             className="card"
@@ -631,6 +649,9 @@ export const CustomerCartPage: React.FC = () => {
                   cursor: 'pointer',
                   fontSize: '0.78rem',
                   fontWeight: 600,
+                  transition: 'all 0.24s cubic-bezier(0.22, 1, 0.36, 1)',
+                  transform: paymentMethod === 'TRANSFERENCIA' ? 'translateY(-2px) scale(1.02)' : 'scale(1)',
+                  boxShadow: paymentMethod === 'TRANSFERENCIA' ? '0 4px 12px rgba(212, 163, 115, 0.2)' : 'none',
                 }}
               >
                 <Building size={18} />
@@ -653,6 +674,9 @@ export const CustomerCartPage: React.FC = () => {
                   cursor: 'pointer',
                   fontSize: '0.78rem',
                   fontWeight: 600,
+                  transition: 'all 0.24s cubic-bezier(0.22, 1, 0.36, 1)',
+                  transform: paymentMethod === 'EFECTIVO' ? 'translateY(-2px) scale(1.02)' : 'scale(1)',
+                  boxShadow: paymentMethod === 'EFECTIVO' ? '0 4px 12px rgba(212, 163, 115, 0.2)' : 'none',
                 }}
               >
                 <Banknote size={18} />

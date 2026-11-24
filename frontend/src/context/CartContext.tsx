@@ -33,6 +33,9 @@ interface CartContextType {
   clearCart: () => void
   subtotal: number
   totalCount: number
+  lastAddedAt: number
+  lastAddedProductId: number | null
+  triggerFlyToCart: (sourceEl?: HTMLElement | null, imageUrl?: string, label?: string) => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -53,6 +56,35 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   })
 
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [lastAddedAt, setLastAddedAt] = useState<number>(0)
+  const [lastAddedProductId, setLastAddedProductId] = useState<number | null>(null)
+
+  const triggerFlyToCart = useCallback(
+    (sourceEl?: HTMLElement | null, imageUrl?: string, label?: string) => {
+      try {
+        const rect = sourceEl?.getBoundingClientRect()
+        window.dispatchEvent(
+          new CustomEvent('cart:fly-item', {
+            detail: {
+              startRect: rect
+                ? {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                  }
+                : null,
+              imageUrl,
+              label,
+            },
+          })
+        )
+      } catch {
+        // Safe noop in non-DOM tests
+      }
+    },
+    []
+  )
 
   // Persist cart to localStorage
   useEffect(() => {
@@ -93,6 +125,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       active: true,
     }
 
+    setLastAddedProductId(id)
+    setLastAddedAt(Date.now())
+
     setCart((prev) => {
       const existingIndex = prev.findIndex((item) => item.product.id === id)
       if (existingIndex > -1) {
@@ -107,7 +142,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [...prev, { product: normalizedProduct, quantity: Math.min(quantity, stockQuantity) }]
     })
-  }, [])
+
+    // Automatically trigger flying particle from matching product card if present in DOM
+    try {
+      const cardEl = document.getElementById(`product-card-${id}`)
+      if (cardEl) {
+        triggerFlyToCart(cardEl, normalizedProduct.imageUrl, name)
+      }
+    } catch {
+      // Safe noop
+    }
+  }, [triggerFlyToCart])
 
   const removeFromCart = useCallback((productId: number) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId))
@@ -183,6 +228,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearCart,
         subtotal,
         totalCount,
+        lastAddedAt,
+        lastAddedProductId,
+        triggerFlyToCart,
       }}
     >
       {children}

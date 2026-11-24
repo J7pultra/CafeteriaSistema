@@ -137,7 +137,7 @@ export const CustomersPage: React.FC = () => {
       <div className="card">
         {filteredCustomers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <UserCheck size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
+            <UserCheck size={48} color="var(--accent-gold)" className="float-slow" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay clientes registrados aún</h3>
             <p style={{ color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px', fontSize: '0.9rem' }}>
               Los clientes registrados en el programa de lealtad o aquellos que compren como invitados aparecerán aquí automáticamente.
@@ -162,8 +162,12 @@ export const CustomersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((c) => (
-                  <tr key={c.id}>
+                {filteredCustomers.map((c, idx) => (
+                  <tr
+                    key={c.id}
+                    className="animate-row"
+                    style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}
+                  >
                     <td style={{ color: 'var(--text-muted)' }}>#{c.id}</td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {c.firstName} {c.lastName}
@@ -181,11 +185,12 @@ export const CustomersPage: React.FC = () => {
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          gap: '6px',
                           color: 'var(--accent-green)',
                           fontSize: '0.8rem',
                         }}
                       >
+                        <span className="pulse-dot-green" />
                         <UserCheck size={14} /> Activo
                       </span>
                     </td>

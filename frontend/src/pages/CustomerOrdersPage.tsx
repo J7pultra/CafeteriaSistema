@@ -93,7 +93,7 @@ export const CustomerOrdersPage: React.FC = () => {
             backgroundColor: 'var(--bg-card)',
           }}
         >
-          <Coffee size={56} style={{ color: 'var(--accent-gold)', opacity: 0.4, margin: '0 auto 16px' }} />
+          <Coffee size={56} className="float-slow" style={{ color: 'var(--accent-gold)', opacity: 0.4, margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Aún no tienes pedidos registrados</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
             Explora nuestro menú y disfruta de nuestras especialidades de cafetería y repostería.
@@ -104,14 +104,14 @@ export const CustomerOrdersPage: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {orders.map((order) => {
+          {orders.map((order, idx) => {
             const stepIndex = getStepProgress(order.status)
             const isCancelled = order.status === 'CANCELADO'
 
             return (
               <div
                 key={order.id}
-                className="card"
+                className={`card animate-stagger stagger-${Math.min(idx + 1, 12)}`}
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   border: '1px solid var(--border-color)',
@@ -212,6 +212,7 @@ export const CustomerOrdersPage: React.FC = () => {
                             }}
                           >
                             <div
+                              className={isCurrent ? 'stepper-node-active' : undefined}
                               style={{
                                 width: '28px',
                                 height: '28px',
@@ -229,6 +230,7 @@ export const CustomerOrdersPage: React.FC = () => {
                                   ? '2px solid #fff'
                                   : '2px solid rgba(255,255,255,0.1)',
                                 marginBottom: '6px',
+                                transition: 'all 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
                               }}
                             >
                               {isDone ? <CheckCircle2 size={16} /> : idx + 1}

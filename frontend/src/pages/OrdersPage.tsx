@@ -200,7 +200,7 @@ export const OrdersPage: React.FC = () => {
       <div className="card">
         {filteredOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <Coffee size={48} color="var(--accent-gold)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
+            <Coffee size={48} color="var(--accent-gold)" className="float-slow" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
             <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No hay pedidos registrados</h3>
             <p style={{ color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px', fontSize: '0.9rem' }}>
               El sistema POS está listo para registrar pedidos reales de cafetería.
@@ -227,8 +227,12 @@ export const OrdersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.map((o) => (
-                  <tr key={o.id}>
+                {filteredOrders.map((o, idx) => (
+                  <tr
+                    key={o.id}
+                    className="animate-row"
+                    style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}
+                  >
                     <td style={{ fontWeight: 600, color: 'var(--accent-gold)' }}>
                       #{o.orderNumber || o.id}
                     </td>

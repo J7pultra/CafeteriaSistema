@@ -6,6 +6,7 @@ interface StatCardProps {
   subtitle?: string
   icon?: React.ReactNode
   iconBg?: string
+  staggerClass?: string
   trend?: {
     value: string
     isPositive: boolean
@@ -18,10 +19,14 @@ export const StatCard: React.FC<StatCardProps> = ({
   subtitle,
   icon,
   iconBg = 'var(--accent-gold-soft)',
+  staggerClass = '',
   trend,
 }) => {
   return (
-    <div className="stat-card" data-testid="stat-card">
+    <div
+      className={`stat-card ${staggerClass ? `animate-stagger ${staggerClass}` : ''}`}
+      data-testid="stat-card"
+    >
       <div className="stat-header">
         <span className="stat-title">{title}</span>
         {icon && (
@@ -30,7 +35,9 @@ export const StatCard: React.FC<StatCardProps> = ({
           </div>
         )}
       </div>
-      <div className="stat-value">{value}</div>
+      <div key={String(value)} className="stat-value stat-value-animate">
+        {value}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {subtitle && <div className="stat-subtitle">{subtitle}</div>}
         {trend && (
