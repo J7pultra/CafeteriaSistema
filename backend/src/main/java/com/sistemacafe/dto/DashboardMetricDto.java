@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -56,11 +57,11 @@ public class DashboardMetricDto {
 
     @Schema(description = "Productos más vendidos en el sistema")
     @Builder.Default
-    private List<TopProductDto> topSellingProducts = Collections.emptyList();
+    private List<TopProductDto> topSellingProducts = new ArrayList<>();
 
     @Schema(description = "Distribución histórica (retrocompatibilidad)")
     @Builder.Default
-    private Map<String, Long> salesByRoastLevel = Collections.emptyMap();
+    private Map<String, Long> salesByRoastLevel = new HashMap<>();
 
     @JsonProperty("weeklyNewCustomers")
     public long getWeeklyNewCustomers() {
