@@ -161,3 +161,130 @@ Fases:
 - [x] Actividad 8.3: Auditoría y optimización de consumo de tokens y llamadas API.
 - [x] Actividad 8.4: Documentación técnica profesional `README.md` de nivel enterprise.
 - [x] Actividad 8.5: Validación global final del sistema desplegado.
+
+
+---
+
+## 4. Estabilización y Refactorización para Producción
+
+### Bloque 1 (@Architect + @BackendDev): Cambio de Dominio a Cafetería Real y Limpieza para Producción
+- [x] Actividad 1.1: Re-alineación del modelo de Producto a Cafetería Real (Bebidas Calientes, Bebidas Frías, Repostería, Desayunos, Snacks, Otros; unidades enteras, sin atributos de tostaduría/kg).
+- [x] Actividad 1.2: Eliminación absoluta de datos ficticios / de prueba en base de datos e inicializadores (DB limpia con roles y único admin parametrizado por `.env`).
+- [x] Actividad 1.3: Verificación de tolerancia a tablas vacías en todos los endpoints (retorno de `[]` y `0` sin excepciones 500).
+- [x] Actividad 1.4: Auditoría y corrección de métricas del Dashboard (ingresos reales no cancelados, desglose de órdenes por estado, clientes semanales, stock bajo, ventas por categoría e invalidación Redis).
+- [x] Actividad 1.5: Ciclo de vida de órdenes con nivel de fidelización en DTO y transiciones de estado válidas (`PENDIENTE` -> `CONFIRMADO` -> `EN_PREPARACION` -> `LISTO` -> `ENTREGADO` / `CANCELADO`) protegidas por RBAC.
+- [x] Actividad 1.6: Actualización de herramientas MCP (@MCPDev) en Java y Python para gestión por unidad en cafetería comercial.
+- [x] Actividad 1.7: Pruebas unitarias y de integración de backend y MCP superadas exitosamente (46/46 tests Spring Boot, compilación Spring AI MCP Server y 38/38 tests Python MCP Client).
+
+### Bloque 2 (@FrontendDev): Rediseño Sobrio, Profesional y 100% Real del Frontend
+- [x] Actividad 2.1: Eliminación total de textos, etiquetas y señales de IA (eliminación de "Gemini", "Sommelier Virtual", emojis y referencias a tostaduría).
+- [x] Actividad 2.2: Reorganización de navegación por rol y eliminación de vistas de relleno (Laboratorio de Tueste / Fichas de Extracción).
+- [x] Actividad 2.3: Rediseño del Dashboard con grilla horizontal responsiva de 4 KPIs y gráficos conectados a métricas reales.
+- [x] Actividad 2.4: Adaptación de vista Productos con modal "Nuevo Producto" para cafetería real (unidades, categorías reales, sin kg).
+- [x] Actividad 2.5: Corrección de Pedidos y POS con mapeo a español legible, columna NIVEL funcional y botones de acción por rol.
+- [x] Actividad 2.6: Control estricto de RBAC en interfaz (BARISTA solo consulta y gestiona pedidos; ADMIN controla catálogo).
+- [x] Actividad 2.7: Adaptación de vistas de cliente (Menú, Mi Carrito, Mis Pedidos) con unidades, stepper sincronizado y sin duplicidad.
+
+### Bloque 3 (@DevOps + Verificación Integral): Pruebas y Validación de Despliegue Real
+- [x] Actividad 3.1: Ejecución de builds de producción (`npm run build`, `mvn clean package`, tests Python).
+- [x] Actividad 3.2: Reconstrucción y despliegue limpio de contenedores con `docker-compose up --build -d` sobre volúmenes vírgenes.
+- [x] Actividad 3.3: Prueba funcional extremo a extremo (login admin .env, creación de catálogo, compra cliente, flujo barista/admin, sincronización dashboard y Redis).
+- [x] Actividad 3.4: Actualización final de estado y documentación de despliegue.
+
+#### Resumen de Estabilización y Despliegue en Producción
+- **Re-alineación de Dominio:** Transición 100% completada del modelo legacy de tostaduría de granos (por kg) a Cafetería Comercial de Especialidad (bebidas calientes, bebidas frías, repostería, desayunos, snacks y otros por unidades).
+- **Limpieza de Datos:** Eliminación total de datos de prueba, seeders hardcodeados y mocks. Base de datos desplegada limpia desde cero con roles y único usuario administrador parametrizado desde variables de entorno (`.env`).
+- **Frontend Refactorizado:** Rediseño corporativo sobrio sin emojis, sin marcas de modelos de IA ni etiquetas de prototipo ("Gemini", "Copiloto", "Sommelier"). Grilla KPI del Dashboard en 4 columnas horizontales responsivas y gráficos enlazados a métricas reales en vivo con invalidación automática de caché en Redis.
+- **Contenedores Activos y Saludables en Docker:**
+  - `coffee-frontend` (React + Nginx): Puerto 3000 -> Saludable.
+  - `coffee-backend` (Spring Boot 3.3.5 / Java 21): Puerto 8088 -> Saludable.
+  - `coffee-mcp-server` (Spring AI WebFlux SSE): Puerto 8001 -> Saludable.
+  - `coffee-mcp-client` (FastAPI / Gemini Client): Puerto 8000 -> Saludable.
+  - `coffee-postgres` (PostgreSQL 16 Alpine): Puerto 5432 -> Saludable.
+  - `coffee-redis` (Redis 7.2 Alpine): Puerto 6379 -> Saludable.
+
+
+---
+
+## 5. Pruebas de Validación E2E en Navegador Real (Simulación Humana) y Auditoría
+
+### Fase de Verificación Integral de Usuario (@QATester / Browser Subagent)
+- [x] **Flujo Cliente:**
+  - Registro de nuevo cliente `cliente_pedro` (`pedro@cafeteria.com`) desde el formulario y pestaña "Registrarse" en `/login`.
+  - Inicio de sesión y redirección automática al Menú de Cafetería (`/store`).
+  - Exploración del catálogo y adición de productos al carrito (1x Cappuccino Clásico, 1x Croissant de Almendras).
+  - Checkout y facturación en `/carritocliente`.
+  - Creación de comanda con código `ORD-188D4FB2` y verificación de seguimiento en tiempo real con stepper sincronizado en `/my-orders`.
+- [x] **Flujo Barista:**
+  - Cierre de sesión de cliente e ingreso como Barista (`barista` / `barista123`).
+  - Recepción de la comanda `ORD-188D4FB2` en `/orders` en estado `Confirmado`.
+  - Transición paso a paso del pedido: `Preparar` (EN_PREPARACION) -> `Listo` (LISTO) -> `Entregar` (ENTREGADO).
+  - Descuento de stock en tiempo real en barra y activación de alerta de "Stock bajo" para productos con stock <= 10 unidades.
+  - Verificación estricta de RBAC en `/catalog`: El rol Barista no tiene acceso a crear productos ("Nuevo Producto" oculto) ni a eliminarlos/desactivarlos.
+- [x] **Flujo Administrador:**
+  - Ingreso como Administrador (`admin` / `admin123`).
+  - Verificación del Dashboard en tiempo real (`/dashboard`) en cuadrícula horizontal de 4 columnas responsivas:
+    - Ingresos Totales: Actualizados a `$19.04` (órdenes válidas entregadas).
+    - Órdenes Procesadas: `2` (1 orden activa).
+    - Clientes Nuevos Semanales: `2` (Pedro y Valentina registrados en los últimos 7 días).
+    - Stock Bajo: `1` producto en nivel crítico.
+    - Ventas por Categoría: `Bebidas Calientes: $10.50 (62%)`, `Repostería: $6.50 (38%)`.
+  - Verificación de permisos de gestión en `/catalog`: Botón "Nuevo Producto" y botones de desactivación plenamente operativos y visibles solo para `ADMIN`.
+- [x] **Flujo Asistente (Chat y Soporte):**
+  - Acceso a `/chat` y evaluación de las consultas humanas sobre menú y stock bajo.
+  - Detección de error de autorización HTTP 401 en el servicio Python MCP Client debido a discrepancia de decodificación del `JWT_SECRET` (Hex vs Base64).
+  - Detección de conflicto visual de superposición del botón flotante sobre el botón de envío en `/chat`.
+- [x] **Documentación de Hallazgos:**
+  - Creación del archivo consolidado `errores.md` con los 7 errores identificados (clasificados por severidad y con su solución técnica detallada) para su posterior corrección.
+
+
+---
+
+## 5. Pruebas de Validación E2E en Navegador Real (Simulación Humana) y Auditoría
+
+### Fase de Verificación Integral de Usuario (@QATester / Browser Subagent)
+- [x] **Flujo Cliente:**
+  - Registro de nuevo cliente `cliente_pedro` (`pedro@cafeteria.com`) desde el formulario y pestaña "Registrarse" en `/login`.
+  - Inicio de sesión y redirección automática al Menú de Cafetería (`/store`).
+  - Exploración del catálogo y adición de productos al carrito (1x Cappuccino Clásico, 1x Croissant de Almendras).
+  - Checkout y facturación en `/carritocliente`.
+  - Creación de comanda con código `ORD-188D4FB2` y verificación de seguimiento en tiempo real con stepper sincronizado en `/my-orders`.
+- [x] **Flujo Barista:**
+  - Cierre de sesión de cliente e ingreso como Barista (`barista` / `barista123`).
+  - Recepción de la comanda `ORD-188D4FB2` en `/orders` en estado `Confirmado`.
+  - Transición paso a paso del pedido: `Preparar` (EN_PREPARACION) -> `Listo` (LISTO) -> `Entregar` (ENTREGADO).
+  - Descuento de stock en tiempo real en barra y activación de alerta de "Stock bajo" para productos con stock <= 10 unidades.
+  - Verificación estricta de RBAC en `/catalog`: El rol Barista no tiene acceso a crear productos ("Nuevo Producto" oculto) ni a eliminarlos/desactivarlos.
+- [x] **Flujo Administrador:**
+  - Ingreso como Administrador (`admin` / `admin123`).
+  - Verificación del Dashboard en tiempo real (`/dashboard`) en cuadrícula horizontal de 4 columnas responsivas:
+    - Ingresos Totales: Actualizados a `$19.04` (órdenes válidas entregadas).
+    - Órdenes Procesadas: `2` (1 orden activa).
+    - Clientes Nuevos Semanales: `2` (Pedro y Valentina registrados en los últimos 7 días).
+    - Stock Bajo: `1` producto en nivel crítico.
+    - Ventas por Categoría: `Bebidas Calientes: $10.50 (62%)`, `Repostería: $6.50 (38%)`.
+  - Verificación de permisos de gestión en `/catalog`: Botón "Nuevo Producto" y botones de desactivación plenamente operativos y visibles solo para `ADMIN`.
+- [x] **Flujo Asistente (Chat y Soporte):**
+  - Acceso a `/chat` y evaluación de las consultas humanas sobre menú y stock bajo.
+  - Detección de error de autorización HTTP 401 en el servicio Python MCP Client debido a discrepancia de decodificación del `JWT_SECRET` (Hex vs Base64).
+  - Detección de conflicto visual de superposición del botón flotante sobre el botón de envío en `/chat`.
+- [x] **Documentación de Hallazgos:**
+  - Creación del archivo consolidado `errores.md` con los 7 errores identificados (clasificados por severidad y con su solución técnica detallada) para su posterior corrección.
+
+---
+
+## 6. Fase 6: Corrección Integral de Errores E2E, Estabilización de CI/CD y Preparación para Despliegue
+
+- [x] **Corrección de Autenticación JWT en MCP Client (BUG-01):**
+  - Se configuró `JWT_SECRET` en las variables de entorno de `mcp-client` en `docker-compose.yml`.
+  - Se refactorizó `get_jwt_signing_key()` en `jwt_auth.py` para admitir claves en formato Hex de 64 caracteres (`bytes.fromhex(secret)`), garantizando compatibilidad idéntica con los tokens emitidos por Spring Boot.
+- [x] **Corrección de Interfaz y Usabilidad (BUG-02 y BUG-03):**
+  - Se ocultó condicionalmente el `FloatingChatWidget` cuando la ruta actual es `/chat`, evitando la intercepción física del clic sobre el botón "Enviar".
+  - Se eliminaron todos los textos, destellos y emojis de "Sommelier AI ✨" en `SommelierHighlighter.tsx`, `index.html` y `Layout.tsx`, adoptando terminología formal de cafetería (`Gestión de Cafetería`, `Menú`, `Asistente`).
+- [x] **Sincronización Financiera y de Lealtad (BUG-04, BUG-05 y BUG-06):**
+  - Se ajustó el cálculo de IVA en el frontend a 12% (`0.12`), eliminando la discrepancia con el backend.
+  - Se incorporó `loyaltyPointsEarned` en `OrderResponseDto.java`, `OrderMapper.java` y los tipos de frontend, permitiendo mostrar los puntos ganados de forma consistente tras la compra.
+  - Se sustituyeron placeholders y textos de tostaduría por instrucciones reales de cafetería en la pantalla de carrito y checkout.
+- [x] **Reparación del Pipeline CI/CD en GitHub Actions:**
+  - Se corrigió el `working-directory` del job `mcp-service-test` en `.github/workflows/ci.yml`, apuntándolo a `cliente_service_mcp`.
+  - Se verificó la compatibilidad y ejecución exitosa de pruebas unitarias y compilación de producción en Frontend (`vitest` + `npm run build`), Backend (`mvn test`) y Python MCP (`pytest`).
