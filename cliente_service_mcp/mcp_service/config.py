@@ -17,8 +17,8 @@ class Settings:
     API_TIMEOUT_SECONDS: float = float(os.getenv("API_TIMEOUT_SECONDS", "10.0"))
     AUTH_TOKEN: str = os.getenv("MCP_AUTH_TOKEN", "")
 
-    # Fallback to local catalog if backend is not reachable
-    ENABLE_MOCK_FALLBACK: bool = os.getenv("ENABLE_MOCK_FALLBACK", "true").lower() in ("true", "1", "yes")
+    # Fallback to local catalog if backend is not reachable (disabled for production)
+    ENABLE_MOCK_FALLBACK: bool = os.getenv("ENABLE_MOCK_FALLBACK", "false").lower() in ("true", "1", "yes")
 
     # Security Guardrails
     MAX_PROMPT_LENGTH: int = int(os.getenv("MAX_PROMPT_LENGTH", "4000"))

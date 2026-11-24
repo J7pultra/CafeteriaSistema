@@ -32,8 +32,7 @@ class CoffeeMCPClient:
                 pass
 
         if not self.server:
-            from mcp_service.server.app import server as default_server
-            self.server = default_server
+            return []
 
         tools = await self.server.list_tools()
         result = []
@@ -56,7 +55,8 @@ class CoffeeMCPClient:
         # If external server_url is configured, dispatch HTTP tool execution
         if self.server_url:
             try:
-                async with httpx.AsyncClient(timeout=15.0) as client:
+                timeout_val = float(os.getenv("MCP_TIMEOUT_SECONDS", "2.0"))
+                async with httpx.AsyncClient(timeout=timeout_val) as client:
                     resp = await client.post(
                         f"{self.server_url}/api/tools/call",
                         json={"name": name, "arguments": arguments},
@@ -68,8 +68,11 @@ class CoffeeMCPClient:
                 pass
 
         if not self.server:
-            from mcp_service.server.app import server as default_server
-            self.server = default_server
+            return {
+                "is_error": True,
+                "structured_content": None,
+                "text": f"Error executing tool '{name}': MCP server is unreachable or offline at {self.server_url}",
+            }
 
         try:
             res = await self.server.call_tool(name, arguments)

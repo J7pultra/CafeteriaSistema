@@ -32,39 +32,8 @@ public class BackendApiClient {
     private final ObjectMapper objectMapper;
     private volatile String cachedToken;
 
-    // Catálogo mock de alta fidelidad para resiliencia offline y pruebas
-    private final List<CoffeeProductDto> fallbackProducts = new ArrayList<>(List.of(
-            CoffeeProductDto.builder()
-                    .id(1L).sku("COF-COL-MED").name("Café Colombia Huila Supremo")
-                    .origin("Huila, Colombia").roastLevel("MEDIUM").category("ESPRESSO_SINGLE_ORIGIN")
-                    .price(new BigDecimal("18.50")).unitPrice(new BigDecimal("18.50")).stockQuantity(42)
-                    .description("Notas de caramelo, chocolate negro y acidez cítrica brillante.")
-                    .flavorNotes("caramelo, chocolate negro, cítricos").active(true).build(),
-            CoffeeProductDto.builder()
-                    .id(2L).sku("COF-ETH-YIR").name("Café Etiopía Yirgacheffe Grado 1")
-                    .origin("Yirgacheffe, Etiopía").roastLevel("LIGHT").category("SPECIALTY_BEANS")
-                    .price(new BigDecimal("24.00")).unitPrice(new BigDecimal("24.00")).stockQuantity(8)
-                    .description("Notas florales a jazmín, bergamota y frutos rojos silvestres.")
-                    .flavorNotes("jazmín, bergamota, frutos rojos").active(true).build(),
-            CoffeeProductDto.builder()
-                    .id(3L).sku("COF-GUA-ANT").name("Café Guatemala Antigua Los Volcanes")
-                    .origin("Antigua, Guatemala").roastLevel("MEDIUM_DARK").category("SPECIALTY_BEANS")
-                    .price(new BigDecimal("21.00")).unitPrice(new BigDecimal("21.00")).stockQuantity(28)
-                    .description("Cuerpo denso y aterciopelado, toques especiados y cacao fino.")
-                    .flavorNotes("cacao, especias, panela").active(true).build(),
-            CoffeeProductDto.builder()
-                    .id(4L).sku("COF-ITA-ESP").name("Mezcla Espresso Italiano Tradizionale")
-                    .origin("Blend Multiorigen").roastLevel("DARK").category("COLD_BREW_BLEND")
-                    .price(new BigDecimal("16.50")).unitPrice(new BigDecimal("16.50")).stockQuantity(65)
-                    .description("Crema espesa y persistente, retrogusto a chocolate amargo.")
-                    .flavorNotes("chocolate amargo, nueces tostadas").active(true).build(),
-            CoffeeProductDto.builder()
-                    .id(5L).sku("COF-DEC-SWP").name("Café Descafeinado Orgánico Swiss Water")
-                    .origin("Antioquia, Colombia").roastLevel("MEDIUM").category("DECAF_ORGANIC")
-                    .price(new BigDecimal("19.50")).unitPrice(new BigDecimal("19.50")).stockQuantity(15)
-                    .description("Proceso de descafeinado al agua 100% natural, sabor dulce y limpio.")
-                    .flavorNotes("vainilla, miel, nueces").active(true).build()
-    ));
+    // Catálogo mock de respaldo vacío para producción (entorno limpio)
+    private final List<CoffeeProductDto> fallbackProducts = new ArrayList<>();
 
     public BackendApiClient(
             @Value("${backend.base-url:http://backend:8080}") String baseUrl,
@@ -194,17 +163,12 @@ public class BackendApiClient {
             Map<String, Object> reqBody = new LinkedHashMap<>();
             reqBody.put("sku", dto.getSku());
             reqBody.put("name", dto.getName());
-            reqBody.put("description", dto.getDescription() != null ? dto.getDescription() : "Bebida artesanal " + dto.getName());
-            reqBody.put("origin", dto.getOrigin() != null ? dto.getOrigin() : "Origen de la Casa");
-            reqBody.put("altitudeMasl", dto.getAltitudeMasl() != null ? dto.getAltitudeMasl() : 1600);
-            reqBody.put("processMethod", dto.getProcessMethod() != null ? dto.getProcessMethod() : "Lavado");
-            reqBody.put("roastLevel", dto.getRoastLevel() != null ? dto.getRoastLevel() : "MEDIUM");
-            reqBody.put("flavorNotes", dto.getFlavorNotes() != null ? dto.getFlavorNotes() : dto.getDescription());
-            reqBody.put("imageUrl", dto.getImageUrl() != null ? dto.getImageUrl() : "https://images.unsplash.com/photo-1559056199-641a0ac8b55e");
+            reqBody.put("description", dto.getDescription() != null ? dto.getDescription() : "Producto de cafetería: " + dto.getName());
+            reqBody.put("imageUrl", dto.getImageUrl());
             reqBody.put("unitPrice", finalPrice);
             reqBody.put("price", finalPrice);
-            reqBody.put("stockQuantity", dto.getStockQuantity() != null ? dto.getStockQuantity() : 50);
-            reqBody.put("category", dto.getCategory() != null ? dto.getCategory() : "ESPRESSO_SINGLE_ORIGIN");
+            reqBody.put("stockQuantity", dto.getStockQuantity() != null ? dto.getStockQuantity() : 30);
+            reqBody.put("category", dto.getCategory() != null ? dto.getCategory() : "BEBIDAS_CALIENTES");
             reqBody.put("active", true);
 
             String body = objectMapper.writeValueAsString(reqBody);

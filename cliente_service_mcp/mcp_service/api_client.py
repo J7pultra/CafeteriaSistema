@@ -7,108 +7,9 @@ from typing import Any, Dict, List, Optional
 import httpx
 from mcp_service.config import settings
 
-# High-fidelity mock coffee catalog for offline resilience
-DEFAULT_COFFEE_CATALOG: List[Dict[str, Any]] = [
-    {
-        "id": 1,
-        "sku": "COF-COL-HUI-01",
-        "name": "Café Geisha Huila Reserva Especial",
-        "description": "Café de especialidad de origen Huila con notas florales a jazmín, miel de azahar y bergamota.",
-        "category": "SPECIALTY",
-        "roastLevel": "LIGHT",
-        "origin": "Huila, Colombia (1850 msnm, Proceso Lavado)",
-        "tastingNotes": "Jazmín, miel, cítrico suave, bergamota, té blanco",
-        "price": 18.50,
-        "stockQuantity": 35,
-        "minStockThreshold": 10,
-        "active": True,
-    },
-    {
-        "id": 2,
-        "sku": "COF-COL-NAR-02",
-        "name": "Café Nariño Volcánico Dulce",
-        "description": "Café de altura cultivado en faldas volcánicas con alta acidez brillante y dulzor a caramelo.",
-        "category": "SINGLE_ORIGIN",
-        "roastLevel": "MEDIUM",
-        "origin": "Nariño, Colombia (2100 msnm, Proceso Honey)",
-        "tastingNotes": "Caramelo, chocolate negro, manzana roja, panela",
-        "price": 14.00,
-        "stockQuantity": 8,
-        "minStockThreshold": 10,
-        "active": True,
-    },
-    {
-        "id": 3,
-        "sku": "COF-ETH-YIR-03",
-        "name": "Etiopía Yirgacheffe Grano Sagrado",
-        "description": "Variedad heredada etíope con cuerpo sedoso, acidez cítrica viva y notas a arándanos.",
-        "category": "SPECIALTY",
-        "roastLevel": "LIGHT",
-        "origin": "Yirgacheffe, Etiopía (1900 msnm, Proceso Natural)",
-        "tastingNotes": "Arándanos, lavanda, melocotón, limón meyer",
-        "price": 22.00,
-        "stockQuantity": 4,
-        "minStockThreshold": 10,
-        "active": True,
-    },
-    {
-        "id": 4,
-        "sku": "COF-BLN-BAR-04",
-        "name": "Blend Espresso Casa Barista",
-        "description": "Mezcla insignia de granos Colombia y Brasil formulada para crema densa y persistente.",
-        "category": "BLEND",
-        "roastLevel": "DARK",
-        "origin": "Blend Colombia & Minas Gerais Brasil (Lavado/Natural)",
-        "tastingNotes": "Cacao amargo, nueces tostadas, melaza, especias",
-        "price": 12.50,
-        "stockQuantity": 60,
-        "minStockThreshold": 15,
-        "active": True,
-    },
-    {
-        "id": 5,
-        "sku": "COF-DEC-SWP-05",
-        "name": "Café Descafeinado Swiss Water",
-        "description": "Descafeinado 100% natural mediante proceso Swiss Water sin solventes químicos.",
-        "category": "DECAF",
-        "roastLevel": "MEDIUM",
-        "origin": "Antioquia, Colombia (1600 msnm, Proceso Swiss Water)",
-        "tastingNotes": "Vainilla, almendras tostadas, chocolate con leche",
-        "price": 15.00,
-        "stockQuantity": 18,
-        "minStockThreshold": 8,
-        "active": True,
-    },
-]
-
-DEFAULT_ORDERS: List[Dict[str, Any]] = [
-    {
-        "id": 101,
-        "orderNumber": "ORD-2026-0001",
-        "customerEmail": "carlos.mendoza@email.com",
-        "customerName": "Carlos Mendoza",
-        "status": "DELIVERED",
-        "totalAmount": 37.00,
-        "paymentMethod": "CREDIT_CARD",
-        "createdAt": "2026-11-15T09:30:00",
-        "items": [
-            {"productSku": "COF-COL-HUI-01", "productName": "Café Geisha Huila", "quantity": 2, "unitPrice": 18.50}
-        ],
-    },
-    {
-        "id": 102,
-        "orderNumber": "ORD-2026-0002",
-        "customerEmail": "valentina.gomez@email.com",
-        "customerName": "Valentina Gómez",
-        "status": "PREPARING",
-        "totalAmount": 22.00,
-        "paymentMethod": "TRANSFER",
-        "createdAt": "2026-11-17T11:15:00",
-        "items": [
-            {"productSku": "COF-ETH-YIR-03", "productName": "Etiopía Yirgacheffe", "quantity": 1, "unitPrice": 22.00}
-        ],
-    },
-]
+# Clean production initial state (no mock seed data)
+DEFAULT_COFFEE_CATALOG: List[Dict[str, Any]] = []
+DEFAULT_ORDERS: List[Dict[str, Any]] = []
 
 
 class BackendApiClient:
@@ -135,10 +36,13 @@ class BackendApiClient:
         if self.token:
             return self.token
         try:
+            import os
+            admin_user = os.getenv("ADMIN_USERNAME", "admin")
+            admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(
                     f"{self.base_url}/api/v1/auth/login",
-                    json={"username": "admin", "password": "admin123"},
+                    json={"username": admin_user, "password": admin_pass},
                     headers={"Content-Type": "application/json"},
                 )
                 if resp.status_code == 200:

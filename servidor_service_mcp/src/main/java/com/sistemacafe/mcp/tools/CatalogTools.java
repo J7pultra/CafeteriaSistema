@@ -13,8 +13,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * HERRAMIENTAS MCP DE CATÁLOGO Y CAFÉS DE ESPECIALIDAD
- * Permite listar, buscar, filtrar, recomendar, registrar y actualizar cafés.
+ * HERRAMIENTAS MCP DE CATÁLOGO DE PRODUCTOS DE CAFETERÍA
+ * Permite listar, buscar, filtrar por categoría, registrar y actualizar productos reales de cafetería.
  */
 @Slf4j
 @Service
@@ -24,14 +24,14 @@ public class CatalogTools {
     private final BackendApiClient backendClient;
 
     /**
-     * Tool 1: Listar productos del catálogo de café.
+     * Tool 1: Listar productos del catálogo de cafetería.
      */
     @Tool(
         name = "listar_productos",
-        description = "Obtiene la lista completa de cafés de especialidad disponibles en la cafetería, incluyendo SKU, nombre, origen, tueste, precio por kg y stock disponible."
+        description = "Obtiene la lista completa de productos disponibles en la cafetería (bebidas calientes, bebidas frías, repostería, desayunos, snacks), incluyendo SKU, nombre, categoría, precio unitario y unidades disponibles."
     )
     public List<Map<String, Object>> listarProductos(
-            @ToolParam(description = "Si es true solo lista cafés activos. Opcional, por defecto true", required = false) Boolean soloActivos) {
+            @ToolParam(description = "Si es true solo lista productos activos. Opcional, por defecto true", required = false) Boolean soloActivos) {
         
         List<CoffeeProductDto> all = backendClient.getAllProducts();
         boolean filterActive = soloActivos == null || soloActivos;
@@ -47,85 +47,110 @@ public class CatalogTools {
      */
     @Tool(
         name = "buscar_producto_sku",
-        description = "Busca la ficha técnica detallada de un café dado su código SKU exacto (ejemplo: 'COF-COL-MED', 'COF-ETH-YIR')."
+        description = "Busca el detalle de un producto de cafetería por su código SKU exacto (ejemplo: 'CAF-HOT-001', 'CAF-CRO-002')."
     )
     public Map<String, Object> buscarProductoSku(
-            @ToolParam(description = "Código SKU del café a buscar") String sku) {
+            @ToolParam(description = "Código SKU del producto a buscar") String sku) {
         
         return backendClient.getProductBySku(sku)
                 .map(this::mapProductSummary)
                 .orElse(Map.of(
                         "encontrado", false,
                         "sku", sku,
-                        "mensaje", "No se encontró ningún café con el SKU: " + sku
+                        "mensaje", "No se encontró ningún producto con el SKU: " + sku
                 ));
     }
 
     /**
-     * Tool 3: Buscar café por origen o país.
+     * Tool 3: Buscar producto por nombre o descripción.
+     */
+    @Tool(
+        name = "buscar_producto_nombre",
+        description = "Encuentra productos de cafetería buscando por término en nombre o descripción (ejemplo: 'Cappuccino', 'Croissant', 'Americano', 'Latte')."
+    )
+    public List<Map<String, Object>> buscarProductoNombre(
+            @ToolParam(description = "Término de búsqueda en nombre o descripción") String termino) {
+        
+        if (termino == null || termino.isBlank()) return Collections.emptyList();
+        String query = termino.trim().toLowerCase();
+
+        return backendClient.getAllProducts().stream()
+                .filter(p -> (p.getName() != null && p.getName().toLowerCase().contains(query))
+                          || (p.getDescription() != null && p.getDescription().toLowerCase().contains(query)))
+                .map(this::mapProductSummary)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Tool 3b: Compatibilidad búsqueda de producto.
      */
     @Tool(
         name = "buscar_cafe_origen",
-        description = "Encuentra cafés filtrando por país, región o finca de origen (ejemplo: 'Colombia', 'Etiopía', 'Guatemala', 'Huila')."
+        description = "Encuentra productos buscando por término en nombre o descripción."
     )
     public List<Map<String, Object>> buscarCafeOrigen(
-            @ToolParam(description = "Nombre del país o región de origen a consultar") String origen) {
+            @ToolParam(description = "Término de búsqueda") String origen) {
+        return buscarProductoNombre(origen);
+    }
+
+    /**
+     * Tool 4: Filtrar por categoría de cafetería.
+     */
+    @Tool(
+        name = "filtrar_por_categoria",
+        description = "Filtra productos según su categoría: BEBIDAS_CALIENTES, BEBIDAS_FRIAS, REPOSTERIA, DESAYUNOS, SNACKS, OTROS."
+    )
+    public List<Map<String, Object>> filtrarPorCategoria(
+            @ToolParam(description = "Categoría: BEBIDAS_CALIENTES, BEBIDAS_FRIAS, REPOSTERIA, DESAYUNOS, SNACKS, OTROS") String categoria) {
         
-        if (origen == null || origen.isBlank()) return Collections.emptyList();
-        String query = origen.trim().toLowerCase();
+        if (categoria == null || categoria.isBlank()) {
+            return listarProductos(true);
+        }
+        String catNorm = categoria.trim().toUpperCase();
 
         return backendClient.getAllProducts().stream()
-                .filter(p -> p.getOrigin() != null && p.getOrigin().toLowerCase().contains(query))
+                .filter(p -> p.getCategory() != null && p.getCategory().equalsIgnoreCase(catNorm))
                 .map(this::mapProductSummary)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Tool 4: Filtrar por nivel de tueste y/o categoría.
+     * Tool 4b: Compatibilidad filtro por categoría.
      */
     @Tool(
         name = "filtrar_por_tueste_categoria",
-        description = "Filtra granos de café según su nivel de tueste (LIGHT, MEDIUM, MEDIUM_DARK, DARK) y opcionalmente su categoría (ESPRESSO_SINGLE_ORIGIN, SPECIALTY_BEANS, COLD_BREW_BLEND, DECAF_ORGANIC)."
+        description = "Filtra productos según categoría de cafetería."
     )
     public List<Map<String, Object>> filtrarPorTuesteCategoria(
-            @ToolParam(description = "Nivel de tueste: LIGHT, MEDIUM, MEDIUM_DARK, DARK", required = false) String tueste,
-            @ToolParam(description = "Categoría del café", required = false) String categoria) {
-        
-        return backendClient.getAllProducts().stream()
-                .filter(p -> {
-                    boolean matchRoast = tueste == null || tueste.isBlank() || 
-                            (p.getRoastLevel() != null && p.getRoastLevel().equalsIgnoreCase(tueste.trim()));
-                    boolean matchCat = categoria == null || categoria.isBlank() || 
-                            (p.getCategory() != null && p.getCategory().equalsIgnoreCase(categoria.trim()));
-                    return matchRoast && matchCat;
-                })
-                .map(this::mapProductSummary)
-                .collect(Collectors.toList());
+            @ToolParam(description = "Tueste o alias de categoría", required = false) String tueste,
+            @ToolParam(description = "Categoría del producto", required = false) String categoria) {
+        String cat = (categoria != null && !categoria.isBlank()) ? categoria : tueste;
+        return filtrarPorCategoria(cat);
     }
 
     /**
-     * Tool 5: Recomendar café por notas de cata o sabor deseado.
+     * Tool 5: Recomendar productos por palabras clave de preferencia.
      */
     @Tool(
         name = "recomendar_por_notas_sabor",
-        description = "Recomienda los cafés más afines a las notas sensoriales solicitadas por el cliente (ejemplo: 'jazmín', 'chocolate', 'frutas', 'caramelo', 'cítrico')."
+        description = "Recomienda los productos de la cafetería más afines a las preferencias del cliente (ejemplo: 'dulce', 'chocolate', 'frío', 'desayuno', 'croissant')."
     )
     public Map<String, Object> recomendarPorNotasSabor(
-            @ToolParam(description = "Notas de sabor o descriptores sensoriales deseados") String notasDeseadas) {
+            @ToolParam(description = "Preferencias o palabras clave deseadas") String preferencias) {
         
-        if (notasDeseadas == null || notasDeseadas.isBlank()) {
-            return Map.of("recomendaciones", Collections.emptyList(), "mensaje", "Por favor indique qué sabores o notas prefiere.");
+        if (preferencias == null || preferencias.isBlank()) {
+            return Map.of("recomendaciones", Collections.emptyList(), "mensaje", "Por favor indique qué prefiere consumir.");
         }
 
-        String[] tokens = notasDeseadas.toLowerCase().split("[,\\s]+");
+        String[] tokens = preferencias.toLowerCase().split("[,\\s]+");
         List<CoffeeProductDto> all = backendClient.getAllProducts();
 
         List<Map<String, Object>> scored = new ArrayList<>();
         for (CoffeeProductDto p : all) {
             int score = 0;
             String text = ((p.getName() != null ? p.getName() : "") + " " +
-                           (p.getFlavorNotes() != null ? p.getFlavorNotes() : "") + " " +
-                           (p.getDescription() != null ? p.getDescription() : "")).toLowerCase();
+                           (p.getDescription() != null ? p.getDescription() : "") + " " +
+                           (p.getCategory() != null ? p.getCategory() : "")).toLowerCase();
             for (String t : tokens) {
                 if (t.length() > 2 && text.contains(t)) {
                     score += 2;
@@ -141,54 +166,62 @@ public class CatalogTools {
         scored.sort((a, b) -> Integer.compare((Integer) b.get("puntuacionAfinidad"), (Integer) a.get("puntuacionAfinidad")));
 
         return Map.of(
-                "criterioBusqueda", notasDeseadas,
+                "criterioBusqueda", preferencias,
                 "totalEncontrados", scored.size(),
                 "recomendaciones", scored
         );
     }
 
     /**
-     * Tool 6: Crear un nuevo café en el catálogo.
+     * Tool 6b: Sobrecarga para compatibilidad de registro de producto.
+     */
+    public Map<String, Object> crearProductoCafe(
+            String nombre,
+            Double precio,
+            String tueste,
+            String origen,
+            String categoria,
+            Integer stockInicial,
+            String notasCata) {
+        String cleanCat = (categoria != null && !categoria.isBlank()) ? categoria : (tueste != null ? tueste : "BEBIDAS_CALIENTES");
+        return crearProductoCafe(nombre, precio, cleanCat, stockInicial, notasCata, null);
+    }
+
+    /**
+     * Tool 6: Crear un nuevo producto en el catálogo.
      */
     @Tool(
         name = "crear_producto_cafe",
-        description = "Registra un nuevo café de especialidad en el sistema con su nombre, precio, tueste, origen, categoría, stock inicial y notas de cata."
+        description = "Registra un nuevo producto de cafetería en el sistema con su nombre, precio unitario, categoría, stock en unidades y descripción."
     )
     public Map<String, Object> crearProductoCafe(
-            @ToolParam(description = "Nombre comercial del café (ejemplo: 'Café Colombia Geisha')") String nombre,
-            @ToolParam(description = "Precio en dólares por kilogramo o unidad (ejemplo: 22.50)") Double precio,
-            @ToolParam(description = "Nivel de tueste: LIGHT, MEDIUM, MEDIUM_DARK, DARK", required = false) String tueste,
-            @ToolParam(description = "Origen o región geográfica", required = false) String origen,
-            @ToolParam(description = "Categoría: ESPRESSO_SINGLE_ORIGIN, SPECIALTY_BEANS, COLD_BREW_BLEND, DECAF_ORGANIC", required = false) String categoria,
-            @ToolParam(description = "Stock inicial en kilogramos (ejemplo: 50)", required = false) Integer stockInicial,
-            @ToolParam(description = "Notas de sabor o descripción sensorial", required = false) String notasCata) {
+            @ToolParam(description = "Nombre del producto (ejemplo: 'Cappuccino Vainilla', 'Croissant de Chocolate')") String nombre,
+            @ToolParam(description = "Precio unitario en dólares (ejemplo: 3.75)") Double precio,
+            @ToolParam(description = "Categoría: BEBIDAS_CALIENTES, BEBIDAS_FRIAS, REPOSTERIA, DESAYUNOS, SNACKS, OTROS", required = false) String categoria,
+            @ToolParam(description = "Stock inicial en unidades (ejemplo: 30)", required = false) Integer stockInicial,
+            @ToolParam(description = "Descripción del producto", required = false) String descripcion,
+            @ToolParam(description = "URL de imagen opcional", required = false) String imageUrl) {
         
-        String cleanName = nombre != null ? nombre.trim() : "Café Especial de la Casa";
-        BigDecimal finalPrice = BigDecimal.valueOf(precio != null && precio > 0 ? precio : 18.00);
-        String cleanRoast = (tueste != null && !tueste.isBlank()) ? tueste.trim().toUpperCase() : "MEDIUM";
-        String cleanOrigin = (origen != null && !origen.isBlank()) ? origen.trim() : "Origen de la Casa";
-        String cleanCat = (categoria != null && !categoria.isBlank()) ? categoria.trim().toUpperCase() : "SPECIALTY_BEANS";
-        int cleanStock = (stockInicial != null && stockInicial >= 0) ? stockInicial : 50;
+        String cleanName = nombre != null ? nombre.trim() : "Producto de Cafetería";
+        BigDecimal finalPrice = BigDecimal.valueOf(precio != null && precio > 0 ? precio : 3.50);
+        String cleanCat = (categoria != null && !categoria.isBlank()) ? categoria.trim().toUpperCase() : "BEBIDAS_CALIENTES";
+        int cleanStock = (stockInicial != null && stockInicial >= 0) ? stockInicial : 30;
+        String finalDesc = (descripcion != null && !descripcion.isBlank()) ? descripcion.trim() : ("Delicioso " + cleanName + " preparado en nuestra cafetería.");
 
-        // Generar SKU único seguro
         String codePrefix = cleanName.replaceAll("[^a-zA-Z]", "").toUpperCase();
         if (codePrefix.length() > 6) codePrefix = codePrefix.substring(0, 6);
-        if (codePrefix.length() < 3) codePrefix = "COF";
-        String generatedSku = "COF-" + codePrefix + "-" + (1000 + new Random().nextInt(9000));
-
-        String finalDesc = (notasCata != null && !notasCata.isBlank()) ? notasCata.trim() : ("Bebida artesanal " + cleanName + " seleccionada de especialidad.");
+        if (codePrefix.length() < 3) codePrefix = "CAF";
+        String generatedSku = "CAF-" + codePrefix + "-" + (1000 + new Random().nextInt(9000));
 
         CoffeeProductDto dto = CoffeeProductDto.builder()
                 .sku(generatedSku)
                 .name(cleanName)
                 .price(finalPrice)
                 .unitPrice(finalPrice)
-                .roastLevel(cleanRoast)
-                .origin(cleanOrigin)
                 .category(cleanCat)
                 .stockQuantity(cleanStock)
-                .flavorNotes(finalDesc)
                 .description(finalDesc)
+                .imageUrl(imageUrl)
                 .active(true)
                 .build();
 
@@ -196,7 +229,6 @@ public class CatalogTools {
         String finalSku = created.getSku() != null ? created.getSku() : generatedSku;
         BigDecimal resPrice = created.getPrice() != null ? created.getPrice() : finalPrice;
         int resStock = created.getStockQuantity() != null ? created.getStockQuantity() : cleanStock;
-        String resDesc = created.getDescription() != null ? created.getDescription() : finalDesc;
         Long prodId = created.getId() != null ? created.getId() : (100L + new Random().nextInt(900));
         String targetId = "product-card-" + prodId;
 
@@ -204,38 +236,26 @@ public class CatalogTools {
         productDetails.put("id", prodId);
         productDetails.put("targetId", targetId);
         productDetails.put("sku", finalSku);
-        productDetails.put("name", created.getName());
         productDetails.put("nombre", created.getName());
-        productDetails.put("price", resPrice);
+        productDetails.put("name", created.getName());
         productDetails.put("precio", resPrice);
+        productDetails.put("price", resPrice);
         productDetails.put("stockQuantity", resStock);
         productDetails.put("stock", resStock);
-        productDetails.put("roastLevel", created.getRoastLevel());
-        productDetails.put("tueste", created.getRoastLevel());
-        productDetails.put("origin", created.getOrigin());
-        productDetails.put("description", resDesc);
-        productDetails.put("descripcion", resDesc);
-        productDetails.put("flavorNotes", resDesc);
+        productDetails.put("categoria", created.getCategory());
+        productDetails.put("description", finalDesc);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("exito", true);
         resp.put("success", true);
         resp.put("id", prodId);
         resp.put("targetId", targetId);
-        resp.put("mensaje", "Café registrado exitosamente en el sistema");
-        resp.put("message", "Café registrado exitosamente en el sistema");
+        resp.put("mensaje", "Producto registrado exitosamente en la cafetería");
         resp.put("sku", finalSku);
         resp.put("nombre", created.getName());
-        resp.put("name", created.getName());
         resp.put("precio", resPrice);
-        resp.put("price", resPrice);
         resp.put("stock", resStock);
-        resp.put("stockQuantity", resStock);
-        resp.put("tueste", created.getRoastLevel());
-        resp.put("roastLevel", created.getRoastLevel());
-        resp.put("origen", created.getOrigin());
-        resp.put("description", resDesc);
-        resp.put("descripcion", resDesc);
+        resp.put("categoria", created.getCategory());
         resp.put("product", productDetails);
 
         return resp;
@@ -246,10 +266,10 @@ public class CatalogTools {
      */
     @Tool(
         name = "actualizar_precio_producto",
-        description = "Actualiza el precio de venta de un café en el catálogo dado su SKU y el nuevo precio."
+        description = "Actualiza el precio unitario de un producto en el menú dado su SKU y el nuevo precio."
     )
     public Map<String, Object> actualizarPrecioProducto(
-            @ToolParam(description = "SKU del café a actualizar") String sku,
+            @ToolParam(description = "SKU del producto a actualizar") String sku,
             @ToolParam(description = "Nuevo precio en dólares") Double nuevoPrecio) {
         
         if (sku == null || sku.isBlank() || nuevoPrecio == null || nuevoPrecio <= 0) {
@@ -258,7 +278,7 @@ public class CatalogTools {
 
         Optional<CoffeeProductDto> prodOpt = backendClient.getProductBySku(sku);
         if (prodOpt.isEmpty()) {
-            return Map.of("exito", false, "mensaje", "No se encontró ningún café con SKU: " + sku);
+            return Map.of("exito", false, "mensaje", "No se encontró ningún producto con SKU: " + sku);
         }
 
         CoffeeProductDto p = prodOpt.get();
@@ -276,7 +296,7 @@ public class CatalogTools {
                 "nombre", p.getName(),
                 "precioAnterior", oldPrice,
                 "precioNuevo", p.getPrice(),
-                "mensaje", "Precio del café " + p.getName() + " actualizado a $" + nuevoPrecio
+                "mensaje", "Precio del producto " + p.getName() + " actualizado a $" + nuevoPrecio
         );
     }
 
@@ -285,14 +305,14 @@ public class CatalogTools {
      */
     @Tool(
         name = "desactivar_producto_catalogo",
-        description = "Desactiva temporalmente un café del catálogo para que no aparezca en venta a los clientes."
+        description = "Desactiva temporalmente un producto del catálogo para que no aparezca en venta a los clientes."
     )
     public Map<String, Object> desactivarProductoCatalogo(
-            @ToolParam(description = "SKU del café a desactivar") String sku) {
+            @ToolParam(description = "SKU del producto a desactivar") String sku) {
         
         Optional<CoffeeProductDto> prodOpt = backendClient.getProductBySku(sku);
         if (prodOpt.isEmpty()) {
-            return Map.of("exito", false, "mensaje", "Café con SKU " + sku + " no encontrado.");
+            return Map.of("exito", false, "mensaje", "Producto con SKU " + sku + " no encontrado.");
         }
 
         CoffeeProductDto p = prodOpt.get();
@@ -307,7 +327,7 @@ public class CatalogTools {
                 "sku", sku,
                 "nombre", p.getName(),
                 "activo", false,
-                "mensaje", "El café " + p.getName() + " ha sido desactivado del catálogo comercial."
+                "mensaje", "El producto " + p.getName() + " ha sido desactivado del menú."
         );
     }
 
@@ -318,13 +338,11 @@ public class CatalogTools {
         m.put("targetId", "product-card-" + prodId);
         m.put("sku", p.getSku());
         m.put("nombre", p.getName());
-        m.put("origen", p.getOrigin());
-        m.put("tueste", p.getRoastLevel());
         m.put("categoria", p.getCategory());
         m.put("precio", p.getPrice() != null ? p.getPrice() : p.getUnitPrice());
         m.put("stockDisponible", p.getStockQuantity());
-        m.put("notasCata", p.getFlavorNotes());
         m.put("descripcion", p.getDescription());
+        m.put("imageUrl", p.getImageUrl());
         m.put("activo", p.getActive() != null ? p.getActive() : true);
         return m;
     }

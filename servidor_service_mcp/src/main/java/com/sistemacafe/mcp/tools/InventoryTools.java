@@ -14,8 +14,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * HERRAMIENTAS MCP DE GESTIÓN DE INVENTARIO Y STOCK DE CAFÉ
- * Control de existencias, alertas de rotación, reposición y valorización.
+ * HERRAMIENTAS MCP DE GESTIÓN DE INVENTARIO Y STOCK DE CAFETERÍA
+ * Control de existencias por unidad, alertas de rotación y reposición comercial.
  */
 @Slf4j
 @Service
@@ -25,11 +25,11 @@ public class InventoryTools {
     private final BackendApiClient backendClient;
 
     /**
-     * Tool 9: Consultar stock disponible de un café por SKU.
+     * Tool 9: Consultar stock disponible de un producto por SKU.
      */
     @Tool(
         name = "consultar_stock",
-        description = "Consulta la cantidad física disponible en bodega para un grano de café específico por su código SKU."
+        description = "Consulta la cantidad de unidades físicas disponibles en inventario para un producto por su código SKU."
     )
     public StockStatusDto consultarStock(
             @ToolParam(description = "Código SKU del producto a consultar") String sku) {
@@ -43,7 +43,7 @@ public class InventoryTools {
                     .minThreshold(10)
                     .status("NO_REGISTRADO")
                     .isLowStock(false)
-                    .message("No existe ningún grano de café con SKU: " + sku)
+                    .message("No existe ningún producto con SKU: " + sku)
                     .build();
         }
 
@@ -60,8 +60,8 @@ public class InventoryTools {
                 .status(low ? "STOCK_CRITICO" : "OPTIMO")
                 .price(p.getPrice())
                 .isLowStock(low)
-                .message(low ? "¡Alerta! Stock por debajo del límite mínimo recomendado (" + threshold + " kg)." 
-                             : "Stock suficiente en bodega.")
+                .message(low ? "¡Alerta! Stock por debajo del límite mínimo (" + threshold + " unidades)." 
+                             : "Stock suficiente en inventario (" + stock + " unidades).")
                 .build();
     }
 
@@ -70,16 +70,16 @@ public class InventoryTools {
      */
     @Tool(
         name = "ajustar_stock_inventario",
-        description = "Modifica las existencias de un café por entrada de lote (INGRESO), merma o consumo (EGRESO), o ajuste de inventario."
+        description = "Modifica las existencias de un producto por ingreso de mercancía (INGRESO), venta o consumo (EGRESO), o ajuste de inventario."
     )
     public Map<String, Object> ajustarStockInventario(
-            @ToolParam(description = "Código SKU del café") String sku,
-            @ToolParam(description = "Cantidad en kg a mover o fijar") Integer cantidad,
+            @ToolParam(description = "Código SKU del producto") String sku,
+            @ToolParam(description = "Cantidad en unidades a mover o fijar") Integer cantidad,
             @ToolParam(description = "Tipo de movimiento: INGRESO, EGRESO o AJUSTE") String tipoMovimiento) {
         
         Optional<CoffeeProductDto> prodOpt = backendClient.getProductBySku(sku);
         if (prodOpt.isEmpty()) {
-            return Map.of("exito", false, "mensaje", "Café no encontrado con SKU: " + sku);
+            return Map.of("exito", false, "mensaje", "Producto no encontrado con SKU: " + sku);
         }
 
         CoffeeProductDto p = prodOpt.get();
@@ -113,23 +113,23 @@ public class InventoryTools {
                 "movimiento", tipo,
                 "cantidadOperada", cantidad,
                 "nuevoStock", nuevoStock,
-                "mensaje", "Stock de " + p.getName() + " actualizado a " + nuevoStock + " kg"
+                "mensaje", "Stock de " + p.getName() + " actualizado a " + nuevoStock + " unidades"
         );
     }
 
     /**
-     * Tool 11: Reabastecer café con lote de reposición.
+     * Tool 11: Reabastecer producto con stock de reposición.
      */
     @Tool(
         name = "reabastecer_cafe",
-        description = "Agrega kilogramos de café a la bodega para reabastecer un lote agotado o con stock bajo."
+        description = "Agrega unidades al inventario para reabastecer un producto agotado o con stock bajo."
     )
     public Map<String, Object> reabastecerCafe(
-            @ToolParam(description = "Código SKU del café") String sku,
-            @ToolParam(description = "Cantidad de kilogramos a ingresar (ejemplo: 25)") Integer cantidadKg) {
+            @ToolParam(description = "Código SKU del producto") String sku,
+            @ToolParam(description = "Cantidad de unidades a ingresar (ejemplo: 25)") Integer cantidadUnidades) {
         
-        int kg = cantidadKg != null && cantidadKg > 0 ? cantidadKg : 20;
-        return ajustarStockInventario(sku, kg, "INGRESO");
+        int qty = cantidadUnidades != null && cantidadUnidades > 0 ? cantidadUnidades : 20;
+        return ajustarStockInventario(sku, qty, "INGRESO");
     }
 
     /**
@@ -137,10 +137,10 @@ public class InventoryTools {
      */
     @Tool(
         name = "alerta_stock_critico",
-        description = "Lista todos los cafés con stock igual o inferior al umbral de seguridad (por defecto 10 kg), que requieren reposición inmediata."
+        description = "Lista todos los productos con stock igual o inferior al umbral de seguridad (por defecto 10 unidades), que requieren reposición."
     )
     public Map<String, Object> alertaStockCritico(
-            @ToolParam(description = "Umbral límite en kg. Opcional, por defecto 10", required = false) Integer umbral) {
+            @ToolParam(description = "Umbral límite en unidades. Opcional, por defecto 10", required = false) Integer umbral) {
         
         int limit = (umbral != null && umbral > 0) ? umbral : 10;
         List<CoffeeProductDto> critical = backendClient.getLowStockProducts(limit);
@@ -149,52 +149,44 @@ public class InventoryTools {
                 .map(p -> Map.<String, Object>of(
                         "sku", p.getSku(),
                         "nombre", p.getName(),
-                        "stockActual", p.getStockQuantity() != null ? p.getStockQuantity() : 0,
-                        "umbralMinimo", limit,
-                        "origen", p.getOrigin() != null ? p.getOrigin() : "Desconocido"
+                        "stockActual", p.getStockQuantity(),
+                        "precio", p.getPrice() != null ? p.getPrice() : p.getUnitPrice(),
+                        "categoria", p.getCategory()
                 ))
                 .collect(Collectors.toList());
 
         return Map.of(
-                "totalLotesCriticos", items.size(),
-                "umbralConfigurado", limit,
-                "requiereReabastecimiento", !items.isEmpty(),
-                "lotesAfectados", items
+                "umbralConsultado", limit,
+                "totalCriticos", items.size(),
+                "productosCriticos", items,
+                "mensaje", items.isEmpty() ? "Inventario en estado óptimo. No hay productos críticos." 
+                                           : "Atención: " + items.size() + " producto(s) con stock crítico."
         );
     }
 
     /**
-     * Tool 13: Resumen global de existencias y valorización de inventario.
+     * Tool 13: Resumen global de inventario.
      */
     @Tool(
         name = "resumen_global_inventario",
-        description = "Genera un balance consolidado del almacén: total de referencias de café, suma de kilogramos en inventario y valorización total en dólares."
+        description = "Proporciona una vista consolidada del inventario de la cafetería."
     )
     public Map<String, Object> resumenGlobalInventario() {
         List<CoffeeProductDto> all = backendClient.getAllProducts();
-
-        int totalReferencias = all.size();
-        int totalKg = 0;
-        BigDecimal valorTotal = BigDecimal.ZERO;
-        int countCriticos = 0;
-
-        for (CoffeeProductDto p : all) {
-            int stock = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
-            totalKg += stock;
-            if (stock <= 10) countCriticos++;
-            BigDecimal price = p.getPrice() != null ? p.getPrice() : p.getUnitPrice();
-            if (price != null) {
-                valorTotal = valorTotal.add(price.multiply(BigDecimal.valueOf(stock)));
-            }
-        }
+        int totalProducts = all.size();
+        int totalUnits = all.stream().mapToInt(p -> p.getStockQuantity() != null ? p.getStockQuantity() : 0).sum();
+        BigDecimal totalValue = all.stream()
+                .map(p -> {
+                    BigDecimal pr = p.getPrice() != null ? p.getPrice() : (p.getUnitPrice() != null ? p.getUnitPrice() : BigDecimal.ZERO);
+                    return pr.multiply(BigDecimal.valueOf(p.getStockQuantity() != null ? p.getStockQuantity() : 0));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return Map.of(
-                "totalVariedadesCafe", totalReferencias,
-                "totalKilosEnBodega", totalKg,
-                "valorizacionTotalDolares", valorTotal,
-                "lotesCriticos", countCriticos,
-                "estadoGeneral", countCriticos > 0 ? "ATENCION_REQUERIDA" : "EXCELENTE",
-                "mensaje", "Inventario con " + totalReferencias + " variedades y " + totalKg + " kg totales valorados en $" + valorTotal
+                "totalProductos", totalProducts,
+                "unidadesTotales", totalUnits,
+                "valorInventario", totalValue,
+                "mensaje", "Inventario consolidado: " + totalProducts + " productos, " + totalUnits + " unidades disponibles."
         );
     }
 }

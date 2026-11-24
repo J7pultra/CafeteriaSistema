@@ -136,8 +136,6 @@ async def test_chatbot_customer_catalog_formatting(agent):
 
 @pytest.mark.asyncio
 async def test_server_custom_chat_endpoint():
-    from mcp_service.server.app import create_mcp_server
-    server = create_mcp_server()
-    # Ensure custom route is present
-    routes = [r.path for r in server._custom_starlette_routes]
+    from mcp_service.client.client_app import app
+    routes = [r.path for r in app.routes if hasattr(r, "path")]
     assert "/api/chat" in routes

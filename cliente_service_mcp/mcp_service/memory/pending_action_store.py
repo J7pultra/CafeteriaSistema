@@ -20,7 +20,8 @@ logger = logging.getLogger("mcp-pending-actions")
 
 class PendingActionStore:
     def __init__(self):
-        self.host = os.getenv("REDIS_HOST", "coffee-redis")
+        default_redis_host = "127.0.0.1" if os.name == "nt" else "coffee-redis"
+        self.host = os.getenv("REDIS_HOST", default_redis_host)
         self.port = int(os.getenv("REDIS_PORT", "6379"))
         self._client: Optional[Any] = None
         self._memory_fallback: Dict[str, Dict[str, Any]] = {}

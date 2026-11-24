@@ -21,7 +21,8 @@ class ConversationMemory:
 
     def __init__(self):
         self.redis_client = None
-        redis_host = os.getenv("REDIS_HOST", "redis")
+        default_redis_host = "127.0.0.1" if os.name == "nt" else "redis"
+        redis_host = os.getenv("REDIS_HOST", default_redis_host)
         redis_port = int(os.getenv("REDIS_PORT", "6379"))
         redis_url = os.getenv("REDIS_URL")
 

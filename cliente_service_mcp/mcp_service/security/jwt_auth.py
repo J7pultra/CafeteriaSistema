@@ -17,22 +17,30 @@ logger = logging.getLogger("mcp-jwt-auth")
 # Secret key matching Spring Boot coffee-backend
 RAW_JWT_SECRET = os.getenv(
     "JWT_SECRET",
-    "c2VjdXJlX2hlYXJ0X29mX2NvZmZlZV9lbnRlcnByaXNlXzUxMmtleV9zdXByZW1lXzIwMjY="
+    "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
 )
 
 
 def get_jwt_signing_key() -> bytes:
     """
-    Decodes base64-encoded secret if valid, otherwise falls back to UTF-8 bytes.
-    Spring Boot io.jsonwebtoken uses Decoders.BASE64.decode(secret).
+    Decodes secret key supporting:
+    1. Hexadecimal 64-char string (Spring Boot HexFormat / io.jsonwebtoken Keys.hmacShaKeyFor).
+    2. Base64-encoded string.
+    3. Plain UTF-8 bytes.
     """
+    secret = os.getenv("JWT_SECRET", RAW_JWT_SECRET).strip()
+    if len(secret) == 64:
+        try:
+            return bytes.fromhex(secret)
+        except ValueError:
+            pass
     try:
-        decoded = base64.b64decode(RAW_JWT_SECRET)
+        decoded = base64.b64decode(secret)
         if len(decoded) >= 32:
             return decoded
     except Exception:
         pass
-    return RAW_JWT_SECRET.encode("utf-8")
+    return secret.encode("utf-8")
 
 
 def normalize_role(roles_claim: Any) -> str:
