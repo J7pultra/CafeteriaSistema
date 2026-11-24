@@ -242,5 +242,49 @@ class BackendApiClient:
                         pass
         return deactivated_count
 
+    async def get_dashboard_metrics(self) -> Optional[Dict[str, Any]]:
+        """Fetch real-time dashboard metrics from Spring Boot backend."""
+        token = await self._ensure_token()
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        elif settings.AUTH_TOKEN:
+            headers["Authorization"] = f"Bearer {settings.AUTH_TOKEN}"
+
+        try:
+            async with httpx.AsyncClient(timeout=settings.API_TIMEOUT_SECONDS) as client:
+                resp = await client.get(f"{self.base_url}/api/v1/dashboard/metrics", headers=headers)
+                if resp.status_code == 200:
+                    return resp.json()
+        except Exception:
+            pass
+        return None
+
+    async def get_all_customers(self) -> List[Dict[str, Any]]:
+        """Fetch registered customers from Spring Boot backend."""
+        token = await self._ensure_token()
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        elif settings.AUTH_TOKEN:
+            headers["Authorization"] = f"Bearer {settings.AUTH_TOKEN}"
+
+        try:
+            async with httpx.AsyncClient(timeout=settings.API_TIMEOUT_SECONDS) as client:
+                resp = await client.get(
+                    f"{self.base_url}/api/v1/customers",
+                    headers=headers,
+                    params={"page": 0, "size": 100},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, dict) and "content" in data:
+                        return data["content"]
+                    if isinstance(data, list):
+                        return data
+        except Exception:
+            pass
+        return []
+
 
 backend_client = BackendApiClient()

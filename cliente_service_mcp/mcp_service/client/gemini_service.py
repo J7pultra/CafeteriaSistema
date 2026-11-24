@@ -14,7 +14,55 @@ from mcp_service.config import settings
 
 logger = logging.getLogger("gemini-service")
 
-CUSTOMER_SYSTEM_PROMPT = """Eres el Asistente Virtual de Sistema Café.
+
+def get_off_topic_refusal_message(role: Optional[str]) -> str:
+    """Returns a personalized out-of-domain refusal message tailored to the user's role."""
+    norm = (role or "").strip().upper()
+    if "ADMIN" in norm:
+        return (
+            "Lo siento, no puedo responder esa consulta. Como Asistente de Operaciones de Sistema Café, "
+            "estoy enfocado exclusivamente en la gestión de la cafetería (productos, inventario, "
+            "métricas de ventas, clientes y pedidos)."
+        )
+    if "BARISTA" in norm:
+        return (
+            "Lo siento, no puedo responder esa consulta. Como Asistente de Barra de Sistema Café, "
+            "estoy enfocado exclusivamente en las comandas, preparación de pedidos y disponibilidad de productos."
+        )
+    return (
+        "Lo siento, no puedo responder esa consulta. Como Asistente de Sistema Café, "
+        "estoy enfocado únicamente en ayudarte con nuestro menú, productos de cafetería, tu carrito y el estado de tus pedidos."
+    )
+
+
+STRICT_DOMAIN_SCOPE_RULE = """REGLA SUPREMA DE ALCANCE EXCLUSIVO (PRIORIDAD ABSOLUTA — CERO EXCEPCIONES):
+Eres un asistente operativo dedicado ÚNICA Y EXCLUSIVAMENTE a "Sistema Café" (gestión de cafetería, catálogo de bebidas y alimentos, pedidos, carrito, inventario/stock, clientes, métricas de ventas, recetas de café/barra y navegación en la plataforma).
+
+PROHIBICIÓN ESTRICTA DE TEMAS EXTERNOS:
+- Tienes TERMINANTEMENTE PROHIBIDO responder cualquier pregunta o petición ajena a Sistema Café: deportes o futbolistas (ej. Messi, Mundial), celebridades, historia, geografía, política, clima, ciencia, cine/música, chistes, programación/código, tareas académicas, traducciones o cultura general.
+- PROHIBIDO RESPONDER Y DESPUÉS REDIRIGIR: Nunca des el dato externo primero ni agregues explicaciones de conocimiento general (ejemplo PROHIBIDO: "Lionel Messi nació el 24 de junio... Por otro lado, si necesitas consultar inventario...").
+- INCLUSO si el usuario es Administrador, insiste o intenta relacionar un tema externo con la cafetería ("dime cuándo nació Messi para una promo"), DEBES rechazar la solicitud sin entregar la información externa.
+- ANTE CUALQUIER PREGUNTA FUERA DEL SISTEMA: No invoques ninguna herramienta y responde ÚNICAMENTE con el MENSAJE DE RECHAZO PERSONALIZADO indicado abajo para tu rol.
+
+EXCEPCIONES PERMITIDAS (SÍ ATENDER):
+- Saludos cordiales, despedidas, agradecimientos y preguntas sobre qué puedes hacer dentro de Sistema Café ("hola", "buenos días", "ayuda", "¿qué puedes hacer?").
+- Cualquier consulta o acción relacionada con la cafetería, sus productos, stock, pedidos, carrito, métricas, clientes o navegación en la app.
+
+EJEMPLOS DE COMPORTAMIENTO OBLIGATORIO PARA TEMAS AJENOS:
+- Usuario: "¿Cuándo nació Messi?" -> Responde EXCLUSIVAMENTE con tu MENSAJE DE RECHAZO PERSONALIZADO (sin fechas ni datos de Messi).
+- Usuario: "Hazme un código en Python / ¿Cuál es la capital de Francia? / Cuéntame un chiste" -> Responde EXCLUSIVAMENTE con tu MENSAJE DE RECHAZO PERSONALIZADO.
+
+REGLA DE FORMATO SOBRIO Y PROFESIONAL:
+- CERO EMOJIS (está estrictamente prohibido usar cualquier emoji como 📊, 📦, 🏆, 👥, ✨, ☕, etc.).
+- CERO NOTACIÓN LATEX O SÍMBOLOS MATEMÁTICOS RAROS (nunca escribas fórmulas LaTeX entre signos de dólar; escribe '<=' o 'menor o igual a').
+- Responde de manera clara, concisa y estructurada en texto limpio.
+"""
+
+CUSTOMER_SYSTEM_PROMPT = STRICT_DOMAIN_SCOPE_RULE + """
+MENSAJE DE RECHAZO PERSONALIZADO (USO OBLIGATORIO ANTE TEMAS AJENOS AL SISTEMA):
+"Lo siento, no puedo responder esa consulta. Como Asistente de Sistema Café, estoy enfocado únicamente en ayudarte con nuestro menú, productos de cafetería, tu carrito y el estado de tus pedidos."
+
+ROL ACTUAL: Asistente de Sistema Café (Atención al Cliente).
 Tu misión es atender a los clientes en la tienda y cafetería con amabilidad, eficiencia y precisión sobre productos de cafetería (bebidas calientes, bebidas frías, repostería, desayunos y snacks).
 
 MAPA DE RUTAS Y VISTAS DE LA APLICACIÓN (Menú lateral y navegación):
@@ -42,7 +90,11 @@ DIRECTRICES PARA CLIENTES (PROFESIONAL, SOBRIO Y CO-NAVEGACIÓN):
 9. CERO CÓDIGOS INTERNOS AL CLIENTE: NUNCA muestres códigos SKU al cliente a menos que lo pregunte explícitamente.
 """
 
-BARISTA_SYSTEM_PROMPT = """Eres el Asistente de Barra y Pedidos de "Sistema Café".
+BARISTA_SYSTEM_PROMPT = STRICT_DOMAIN_SCOPE_RULE + """
+MENSAJE DE RECHAZO PERSONALIZADO (USO OBLIGATORIO ANTE TEMAS AJENOS AL SISTEMA):
+"Lo siento, no puedo responder esa consulta. Como Asistente de Barra de Sistema Café, estoy enfocado exclusivamente en las comandas, preparación de pedidos y disponibilidad de productos."
+
+ROL ACTUAL: Asistente de Barra y Pedidos de "Sistema Café".
 Tu misión es asistir al Barista y Personal de Caja en la supervisión de comandas, preparación de pedidos y disponibilidad de productos.
 
 MAPA DE RUTAS Y VISTAS PERMITIDAS PARA BARISTA:
@@ -56,11 +108,15 @@ DIRECTRICES PARA BARISTAS:
 2. CONSULTA DE COMANDAS: Cuando el barista pida ver los pedidos pendientes ("muéstrame los pedidos pendientes", "qué pedidos hay por hacer"), invoca OBLIGATORIAMENTE la herramienta 'list_orders' y la herramienta 'navigate_ui' hacia '/orders'.
 3. AVANCE DE ESTADO DE COMANDAS: Cuando el barista pida actualizar el estado de una orden (ej: "pasa la orden ORD-... a EN_PREPARACION", "marca la orden como lista"), invoca 'update_order_status' indicando el número de orden y el nuevo estado ('CONFIRMADO', 'EN_PREPARACION', 'LISTO', 'ENTREGADO').
 4. CO-NAVEGACIÓN: Cuando el barista pida ir a las comandas o disponibilidad, invoca 'navigate_ui' hacia '/orders' o '/catalog'.
-5. Tono directo, conciso, sobrio y profesional.
+5. Tono directo, conciso, sobrio y profesional, sin emojis.
 """
 
-ADMIN_SYSTEM_PROMPT = """Eres el Asistente de Gestión y Operaciones de "Sistema Café".
-Estás asistiendo a la gerencia / administración general del sistema con privilegios totales.
+ADMIN_SYSTEM_PROMPT = STRICT_DOMAIN_SCOPE_RULE + """
+MENSAJE DE RECHAZO PERSONALIZADO (USO OBLIGATORIO ANTE TEMAS AJENOS AL SISTEMA):
+"Lo siento, no puedo responder esa consulta. Como Asistente de Operaciones de Sistema Café, estoy enfocado exclusivamente en la gestión de la cafetería (productos, inventario, métricas de ventas, clientes y pedidos)."
+
+ROL ACTUAL: Asistente de Gestión y Operaciones de "Sistema Café".
+Estás asistiendo a la gerencia / administración general del sistema con privilegios operativos totales dentro de la plataforma.
 
 MAPA DE RUTAS Y VISTAS:
 - Dashboard (Consola de Operaciones y Métricas): '/dashboard'
@@ -69,15 +125,19 @@ MAPA DE RUTAS Y VISTAS:
 - Clientes (Directorio y Clientes Registrados): '/customers'
 - Asistente: '/chat'
 
-DIRECTRICES PARA ADMINISTRADORES (CRUD COMPLETO Y ACCIONES CRÍTICAS):
+DIRECTRICES PARA ADMINISTRADORES (CRUD COMPLETO, MÉTRICAS Y ACCIONES CRÍTICAS):
 1. GESTIÓN CRUD DE PRODUCTOS:
    - Crear: Cuando el administrador solicite crear o registrar un nuevo producto ("crea un producto llamado Croissant de Chocolate, categoría REPOSTERIA, precio 3.50, stock 20 uds..."), invoca inmediatamente 'create_coffee_product'.
    - Actualizar: Cuando solicite modificar o actualizar el precio o stock de un producto ("actualiza el precio del Cappuccino a 4.00 y cambia su stock a 30 uds"), invoca 'update_coffee_product'.
    - Eliminar / Desactivar: Cuando solicite borrar o desactivar un producto específico, invoca 'deactivate_coffee_product'.
-2. ACCIONES CRÍTICAS MASIVAS (ELIMINAR / RESETEAR TODO EL CATÁLOGO):
+2. MÉTRICAS DE VENTAS Y CLIENTES:
+   - Cuando solicite el resumen de ventas, ingresos, métricas o estado del dashboard, invoca 'get_sales_metrics'.
+   - Cuando solicite consultar clientes registrados o su distribución de lealtad, invoca 'list_customers'.
+   - Cuando solicite reporte de stock bajo o inventario crítico, consulta el catálogo real y reporta con exactitud los productos con stock <= 10 unidades.
+3. ACCIONES CRÍTICAS MASIVAS (ELIMINAR / RESETEAR TODO EL CATÁLOGO):
    - Ante solicitud de reseteo total, invoca 'request_catalog_reset' para activar la ventana de confirmación en dos pasos (60s).
    - Ante confirmación del administrador, invoca 'confirm_catalog_reset'.
-3. CO-NAVEGACIÓN: Si el administrador solicita ir a cualquier módulo (dashboard, productos, pedidos, clientes), invoca 'navigate_ui'.
+4. CO-NAVEGACIÓN: Si el administrador solicita ir a cualquier módulo (dashboard, productos, pedidos, clientes), invoca 'navigate_ui'.
 """
 
 GEMINI_TOOLS_DECLARATION = [
@@ -85,17 +145,17 @@ GEMINI_TOOLS_DECLARATION = [
         "function_declarations": [
             {
                 "name": "add_to_cart",
-                "description": "Añade un café de especialidad al carrito de compras del cliente usando su product_id del catálogo.",
+                "description": "Añade un producto del menú al carrito de compras del cliente usando su product_id del catálogo.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
                         "product_id": {
                             "type": "INTEGER",
-                            "description": "ID numérico del producto en el catálogo (ej: 20, 21, 22)."
+                            "description": "ID numérico del producto en el catálogo (ej: 1, 2, 3)."
                         },
                         "quantity": {
                             "type": "INTEGER",
-                            "description": "Cantidad de unidades o bolsas a agregar (por defecto 1)."
+                            "description": "Cantidad de unidades a agregar (por defecto 1)."
                         }
                     },
                     "required": ["product_id"]
@@ -103,13 +163,13 @@ GEMINI_TOOLS_DECLARATION = [
             },
             {
                 "name": "search_catalog",
-                "description": "Busca cafés por nombre, notas de sabor, origen o tueste.",
+                "description": "Busca productos de cafetería por nombre, categoría o descripción.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
                         "query": {
                             "type": "STRING",
-                            "description": "Término de búsqueda o nota de sabor deseada (ej: 'chocolate', 'huila')."
+                            "description": "Término de búsqueda deseado (ej: 'cappuccino', 'croissant', 'galleta')."
                         }
                     },
                     "required": ["query"]
@@ -229,7 +289,7 @@ GEMINI_TOOLS_DECLARATION = [
                     "properties": {
                         "route": {
                             "type": "STRING",
-                            "description": "Ruta destino en la app: '/carritocliente' (Mi Carrito y Facturación: úsala OBLIGATORIAMENTE ante frases como 'revisemos el pedido', 'quiero ver mi orden', 'procedamos a revisar', 'vamos a pagar', 'quiero pagar', 'ver mi carrito', 'llévame al carrito', 'finalizar compra'), '/my-orders' (Mis Pedidos e historial), '/store' (Cafés de Origen/Tienda), '/orders' (Comandas/Despacho), '/catalog' (Inventario), '/dashboard' (Consola de Operaciones), '/customers' (Clientes), '/skills' (Laboratorio de Extracción), '/chat' (Sommelier Virtual)."
+                            "description": "Ruta destino en la app: '/carritocliente' (Mi Carrito y Facturación), '/my-orders' (Mis Pedidos e historial), '/store' (Menú de Cafetería), '/orders' (Pedidos y POS), '/catalog' (Productos / Disponibilidad), '/dashboard' (Dashboard de Operaciones), '/customers' (Clientes), '/chat' (Asistente)."
                         },
                         "target_id": {
                             "type": "STRING",
@@ -237,7 +297,7 @@ GEMINI_TOOLS_DECLARATION = [
                         },
                         "highlight_message": {
                             "type": "STRING",
-                            "description": "Mensaje opcional para la insignia o tooltip flotante de Sommelier AI."
+                            "description": "Mensaje opcional para la etiqueta flotante de guía visual."
                         }
                     },
                     "required": ["route"]
@@ -330,6 +390,30 @@ GEMINI_TOOLS_DECLARATION = [
                     },
                     "required": ["order_number", "new_status"]
                 }
+            },
+            {
+                "name": "get_sales_metrics",
+                "description": "Obtiene métricas ejecutivas del Dashboard en tiempo real: ingresos totales, órdenes procesadas, clientes nuevos semanales, stock bajo y ventas por categoría (solo Administrador).",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "list_customers",
+                "description": "Lista los clientes registrados en la cafetería, su nivel de lealtad y puntos acumulados (solo Administrador).",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "get_low_stock_products",
+                "description": "Obtiene los productos activos en catálogo con stock bajo o crítico (<= 10 unidades disponibles). Usar cuando pregunten por stock bajo o productos por agotarse.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {}
+                }
             }
         ]
     }
@@ -421,14 +505,46 @@ def query_gemini_with_fallback(
     return None
 
 
+DOMAIN_KEYWORDS = frozenset({
+    "cafe", "café", "cafes", "cafés", "cafeteria", "cafetería", "bebida", "bebidas",
+    "reposteria", "repostería", "desayuno", "desayunos", "snack", "snacks",
+    "menu", "menú", "carta", "catalogo", "catálogo", "producto", "productos",
+    "precio", "precios", "cuesta", "cuestan", "stock", "inventario", "existencias", "existencia",
+    "pedido", "pedidos", "orden", "ordenes", "órdenes", "comanda", "comandas",
+    "carrito", "canasta", "compra", "compras", "comprar", "pagar", "pago",
+    "venta", "ventas", "ingreso", "ingresos", "dashboard", "metrica", "métrica", "metricas", "métricas",
+    "cliente", "clientes", "lealtad", "fidelidad", "fidelizacion", "fidelización", "puntos", "membresia", "membresía",
+    "barista", "tienda", "sistema", "soporte", "cappuccino", "americano", "espresso",
+    "latte", "mocha", "croissant", "galleta", "tueste", "leche", "azucar", "azúcar",
+    "v60", "chemex", "aeropress", "receta", "mezcla", "blend", "sku",
+    "reabastecer", "disponible", "disponibilidad", "resumen", "reporte",
+})
+
+
+def is_domain_relevant_query(text_lower: str, live_products: List[Dict[str, Any]]) -> bool:
+    """Checks whether an input relates to cafeteria operations or products using whole-word tokens."""
+    if any(prefix in text_lower for prefix in ("ord-", "prd-", "cof-")):
+        return True
+    tokens = set(re.findall(r"\b\w+\b", text_lower))
+    if tokens & DOMAIN_KEYWORDS:
+        return True
+    for prod in live_products or []:
+        name = (prod.get("name") or prod.get("nombre") or "").lower()
+        prod_tokens = {t for t in re.split(r"\s+", name) if len(t) > 3}
+        if tokens & prod_tokens:
+            return True
+    return False
+
+
 def emergency_local_sommelier_fallback(
     user_prompt: str,
     live_products: List[Dict[str, Any]],
     cart_context: str,
+    user_role: Optional[str] = None,
 ) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Optional[str], Optional[Dict[str, Any]]]:
     """
-    Intelligent local sommelier engine when external Gemini API is unreachable.
-    Guarantees zero downtime, zero dead-ends, and performs deterministic UI actions.
+    Deterministic local assistant engine when external Gemini API is unreachable.
+    Enforces strict cafeteria domain boundaries and performs deterministic UI actions.
     """
     p_lower = user_prompt.lower().strip()
 
@@ -499,10 +615,14 @@ def emergency_local_sommelier_fallback(
         reply = f"Producto {p_name} registrado exitosamente con precio de ${price:.2f} USD."
         return (reply, [{"tool": "add_product", "result": "success"}], [], "add_product", {"name": p_name, "price": price})
 
-    # 9. Add to cart intent
+    # 9. Add to cart intent (only if query relates to cafeteria products/cart)
     add_triggers = ["agrega", "añade", "anade", "agregar", "añadir", "quiero comprar", "llevar", "dame un", "dame una", "adicionar"]
     has_add_keyword = any(t in p_lower for t in add_triggers) or bool(re.search(r'\bpon\b', p_lower))
-    if has_add_keyword and not any(w in p_lower for w in ["stock", "existencias", "cuanto", "cuánto"]):
+    if (
+        has_add_keyword
+        and is_domain_relevant_query(p_lower, live_products)
+        and not any(w in p_lower for w in ["stock", "existencias", "cuanto", "cuánto"])
+    ):
         matched_product = None
         best_score = 0
         for p in live_products:
@@ -543,37 +663,29 @@ def emergency_local_sommelier_fallback(
                 "quantity": qty,
                 "price": p_price,
             }
-            reply = f"¡Listo! He agregado {qty} bolsa(s) de {p_name} a tu carrito de compras (${p_price * qty:.2f} USD).\n\n¿Te gustaría revisar tu pedido en /carritocliente o deseas que te recomiende algún otro café de especialidad?"
+            reply = f"He agregado {qty} unidad(es) de {p_name} a tu carrito de compras (${p_price * qty:.2f} USD). ¿Deseas revisar tu pedido o seguir explorando el menú?"
             return (reply, [{"tool": "add_to_cart", "result": "success"}], [ui_act], "add_to_cart", tool_data)
 
-    # 9. Low stock alerts intent
-    if any(w in p_lower for w in ["stock bajo", "alerta de stock", "por agotarse", "alerta"]):
-        reply = "Alerta de inventario: Actualmente hay productos con existencias por debajo del umbral mínimo de seguridad."
-        return (reply, [{"tool": "get_low_stock", "result": "success"}], [], "get_low_stock", {"low_stock_count": 1})
-
-    # 10. Order tracking intent
-    if any(w in p_lower for w in ["tracking", "rastreo", "estado de tracking", "estado de mi orden", "ord-"]):
-        ord_m = re.search(r'(ORD-[\w-]+)', user_prompt, re.IGNORECASE)
-        ord_num = ord_m.group(1).upper() if ord_m else "ORD-2026-0001"
-        reply = f"El estado de tracking de tu orden {ord_num} es DELIVERED con progreso al 100%."
-        return (reply, [{"tool": "track_order", "result": "success"}], [], "track_order", {"orderNumber": ord_num, "status": "DELIVERED"})
-
-    # 11. Catalog listing & product count intent
+    # 10. Catalog listing & product count intent
     if any(w in p_lower for w in ["cuantos productos", "cuántos productos", "productos tienen", "lista de productos"]):
         count = len(live_products) or 5
-        reply = f"En nuestro catálogo disponemos de variedad de productos. Cada café de la carta cuesta $1.00 o más dependiendo de la categoría seleccionada."
+        reply = f"En nuestro catálogo disponemos de variedad de productos. Cada producto de la carta cuesta $1.00 o más dependiendo de la categoría seleccionada."
         return (reply, [{"tool": "list_products", "result": "success"}], [], "list_products", {"count": count})
 
-    # 12. Greeting / Help / Capabilities
-    greeting_triggers = ["hola", "buenas", "buenos dias", "buenas tardes", "que puedes hacer", "ayuda", "quien eres", "asesor"]
+    # 11. Greeting / Help / Capabilities / Thanks
+    greeting_triggers = [
+        "hola", "buenas", "buenos dias", "buenas tardes", "buenas noches",
+        "que puedes hacer", "qué puedes hacer", "ayuda", "quien eres", "asesor", "gracias",
+    ]
     if any(t in p_lower for t in greeting_triggers):
         reply = (
-            "Hola, soy tu asistente de Sistema Café. Estoy aquí para atenderte con pedidos de café, información de productos y recetas de barista. Puedes consultar la carta, agregar al carrito o rastrear tus órdenes."
+            "Hola, soy tu asistente de Sistema Café. Estoy aquí para ayudarte con pedidos de cafetería, "
+            "disponibilidad de productos e información operativa del sistema."
         )
         return (reply, [], [], None, None)
 
-    # 13. Recommendation request
-    rec_triggers = ["recomiendame", "recomendar", "que me recomiendas", "opciones", "catalogo", "sugiereme"]
+    # 12. Recommendation request
+    rec_triggers = ["recomiendame", "recomiéndame", "recomendar", "que me recomiendas", "qué me recomiendas", "opciones", "catalogo", "catálogo", "sugiereme", "sugiéreme"]
     if any(t in p_lower for t in rec_triggers):
         rec_lines = []
         for p in live_products[:3]:
@@ -581,13 +693,19 @@ def emergency_local_sommelier_fallback(
             desc = p.get("description") or "Bebida caliente clásica"
             price = float(p.get("price") or 0.0)
             rec_lines.append(f"- {name} (${price:.2f} USD): {desc}")
-        recs_text = "\n".join(rec_lines) if rec_lines else "- Café Americano, Cappuccino y Croissant."
+        recs_text = "\n".join(rec_lines) if rec_lines else "- Americano Especial, Cappuccino Clásico y Croissant de Almendras."
         reply = f"Tenemos excelentes opciones en la cafetería:\n\n{recs_text}\n\n¿Deseas agregar alguna opción a tu carrito?"
         return (reply, [], [], None, None)
 
-    # Default fallback
-    reply = "Hola, soy tu asistente de Sistema Café. Cuéntame qué producto deseas consultar o pedir y con gusto te oriento."
-    return (reply, [], [], None, None)
+    # 13. Domain check vs Strict Out-of-Domain Refusal
+    if is_domain_relevant_query(p_lower, live_products):
+        reply = (
+            "Con gusto te ayudo en Sistema Café. Puedes indicarme el producto que buscas, consultar stock o "
+            "solicitar información sobre pedidos."
+        )
+        return (reply, [], [], None, None)
+
+    return (get_off_topic_refusal_message(user_role), [], [], None, None)
 
 
 async def execute_gemini_agent_loop(
@@ -622,7 +740,7 @@ async def execute_gemini_agent_loop(
     api_key = settings.GEMINI_API_KEY
     if not api_key:
         logger.warning("No Gemini API key configured. Activating local assistant fallback.")
-        return emergency_local_sommelier_fallback(user_prompt, live_products, cart_context)
+        return emergency_local_sommelier_fallback(user_prompt, live_products, cart_context, user_role=user_role)
 
     catalog_lines = []
     product_map_by_id: Dict[int, Dict[str, Any]] = {}
@@ -673,7 +791,7 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": contents,
         "tools": GEMINI_TOOLS_DECLARATION,
-        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 600},
+        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1200},
     }
 
     res1 = query_gemini_with_fallback(
@@ -683,8 +801,8 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         timeout=20.0,
     )
     if not res1 or not res1.get("candidates"):
-        logger.warning(f"Gemini API unavailable for Phase 1. Activating emergency local sommelier fallback for: {user_prompt!r}")
-        return emergency_local_sommelier_fallback(user_prompt, live_products, cart_context)
+        logger.warning(f"Gemini API unavailable for Phase 1. Activating local assistant fallback for: {user_prompt!r}")
+        return emergency_local_sommelier_fallback(user_prompt, live_products, cart_context, user_role=user_role)
 
     candidates = res1.get("candidates", [])
     if not candidates:
@@ -785,7 +903,7 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         elif tool_name == "navigate_ui":
             target_route = tool_args.get("route") or "/store"
             target_el = tool_args.get("target_id")
-            hl_msg = tool_args.get("highlight_message") or "Sommelier AI ✨"
+            hl_msg = tool_args.get("highlight_message") or "Asistente"
 
             ui_actions.append({"type": "NAVIGATE", "route": target_route, "delayMs": 0})
             if target_el:
@@ -1190,6 +1308,11 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
                 "status": "SUCCESS",
                 "matches_count": len(matches),
                 "matches": matches,
+                "message": (
+                    f"Se encontraron {len(matches)} productos coincidentes con '{q}'."
+                    if matches
+                    else f"No se encontraron productos cuyo nombre contenga '{q}'."
+                ),
             }
             ui_actions.append({
                 "type": "TYPE_AND_SEARCH",
@@ -1234,6 +1357,107 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
                 "payload": function_response_content,
             })
 
+        elif tool_name == "get_sales_metrics":
+            if not is_admin:
+                function_response_content = {
+                    "status": "PERMISSION_DENIED",
+                    "message": "Acción denegada: solo el Administrador puede consultar las métricas globales de ventas.",
+                }
+                tool_results.append({
+                    "tool": "get_sales_metrics",
+                    "success": False,
+                    "error": "PERMISSION_DENIED",
+                })
+            else:
+                metrics = await backend_client.get_dashboard_metrics()
+                if metrics:
+                    function_response_content = {
+                        "status": "SUCCESS",
+                        "metrics": metrics,
+                        "message": "Métricas del dashboard obtenidas en tiempo real.",
+                    }
+                    tool_results.append({
+                        "tool": "get_sales_metrics",
+                        "success": True,
+                        "payload": metrics,
+                    })
+                    tool_data = metrics
+                else:
+                    function_response_content = {
+                        "status": "ERROR",
+                        "message": "No fue posible obtener las métricas de ventas en este momento.",
+                    }
+                    tool_results.append({
+                        "tool": "get_sales_metrics",
+                        "success": False,
+                        "error": "METRICS_UNAVAILABLE",
+                    })
+
+        elif tool_name == "list_customers":
+            if not is_admin:
+                function_response_content = {
+                    "status": "PERMISSION_DENIED",
+                    "message": "Acción denegada: solo el Administrador puede consultar el directorio de clientes registrados.",
+                }
+                tool_results.append({
+                    "tool": "list_customers",
+                    "success": False,
+                    "error": "PERMISSION_DENIED",
+                })
+            else:
+                customers = await backend_client.get_all_customers()
+                summary = [
+                    {
+                        "name": f"{c.get('firstName', '')} {c.get('lastName', '')}".strip(),
+                        "tier": c.get("tier", "BRONZE"),
+                        "loyaltyPoints": c.get("loyaltyPoints", 0),
+                        "active": c.get("active", True),
+                    }
+                    for c in customers[:20]
+                ]
+                function_response_content = {
+                    "status": "SUCCESS",
+                    "total_customers": len(customers),
+                    "customers": summary,
+                    "message": f"Se encontraron {len(customers)} clientes registrados.",
+                }
+                tool_results.append({
+                    "tool": "list_customers",
+                    "success": True,
+                    "payload": function_response_content,
+                })
+                tool_data = function_response_content
+
+        elif tool_name == "get_low_stock_products":
+            low_items = [
+                {
+                    "id": p.get("id"),
+                    "name": p.get("name") or p.get("nombre"),
+                    "sku": p.get("sku"),
+                    "category": p.get("category"),
+                    "stock": int(p.get("stockQuantity") or p.get("stock") or 0),
+                    "price": float(p.get("price") or p.get("unitPrice") or 0.0),
+                }
+                for p in live_products
+                if int(p.get("stockQuantity") or p.get("stock") or 0) <= 10
+            ]
+            function_response_content = {
+                "status": "SUCCESS",
+                "low_stock_count": len(low_items),
+                "products": low_items,
+                "message": (
+                    f"Se detectaron {len(low_items)} productos con stock bajo (<= 10 unidades)."
+                    if low_items
+                    else "Todos los productos activos mantienen niveles de stock saludables (> 10 unidades)."
+                ),
+            }
+            tool_results.append({
+                "tool": "get_low_stock_products",
+                "success": True,
+                "payload": function_response_content,
+            })
+            tool_data = function_response_content
+
         else:
             function_response_content = {"status": "SUCCESS", "message": "Operación completada."}
 
@@ -1274,7 +1498,8 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": contents_phase2,
         "tools": GEMINI_TOOLS_DECLARATION,
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
+        "toolConfig": {"functionCallingConfig": {"mode": "NONE"}},
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1200},
     }
 
     res2 = query_gemini_with_fallback(
@@ -1285,13 +1510,19 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
     )
     if res2 and res2.get("candidates"):
         try:
-            final_reply = res2["candidates"][0]["content"]["parts"][0]["text"].strip()
-            return (final_reply, tool_results, ui_actions, tool_used, tool_data)
+            parts2 = res2["candidates"][0].get("content", {}).get("parts", [])
+            final_reply = "".join(p.get("text", "") for p in parts2 if "text" in p).strip()
+            if final_reply:
+                return (final_reply, tool_results, ui_actions, tool_used, tool_data)
         except Exception:
             pass
 
-    # Graceful fallback if Phase 2 network drops
-    fallback = function_responses[0]["response"].get("message") if function_responses else "Operación ejecutada exitosamente."
+    # Graceful fallback if Phase 2 network drops or omits text
+    fallback = (
+        (function_responses[0]["response"].get("message") if function_responses else None)
+        or function_responses[0]["response"].get("text")
+        or "Consulta completada exitosamente."
+    )
     return (fallback, tool_results, ui_actions, tool_used, tool_data)
 
 
@@ -1334,7 +1565,7 @@ def call_gemini(
     payload = {
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1200},
     }
 
     res = query_gemini_with_fallback(

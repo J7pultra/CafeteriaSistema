@@ -80,20 +80,23 @@ async def test_chatbot_blocks_jailbreak_attempt(agent):
 
 @pytest.mark.asyncio
 async def test_chatbot_rate_limiting(agent):
-    # Set low limit for testing
+    # Set low limit for testing and restore after
+    original_max = rate_limiter.max_requests
     rate_limiter.max_requests = 2
     client_id = "abusive_client_ip"
+    try:
+        resp1 = await agent.process_message("Hola", client_id=client_id)
+        assert resp1.blocked_by_shield is False
 
-    resp1 = await agent.process_message("Hola", client_id=client_id)
-    assert resp1.blocked_by_shield is False
+        resp2 = await agent.process_message("¿Qué cafés tienen?", client_id=client_id)
+        assert resp2.blocked_by_shield is False
 
-    resp2 = await agent.process_message("¿Qué cafés tienen?", client_id=client_id)
-    assert resp2.blocked_by_shield is False
-
-    # 3rd request should be rate limited
-    resp3 = await agent.process_message("¿Cuánto stock hay?", client_id=client_id)
-    assert resp3.blocked_by_shield is True
-    assert "límite de consultas permitidas" in resp3.reply
+        # 3rd request should be rate limited
+        resp3 = await agent.process_message("¿Cuánto stock hay?", client_id=client_id)
+        assert resp3.blocked_by_shield is True
+        assert "límite de consultas permitidas" in resp3.reply
+    finally:
+        rate_limiter.max_requests = original_max
 
 
 @pytest.mark.asyncio
@@ -139,3 +142,29 @@ async def test_server_custom_chat_endpoint():
     from mcp_service.client.client_app import app
     routes = [r.path for r in app.routes if hasattr(r, "path")]
     assert "/api/chat" in routes
+
+
+@pytest.mark.asyncio
+async def test_chatbot_rejects_off_topic_queries_by_role(agent):
+    res_admin = await agent.process_message("Cuando nacio messi", client_id="offtopic_admin", user_role="ROLE_ADMIN")
+    assert res_admin.tool_used is None
+    assert "1987" not in res_admin.reply
+    assert "rosario" not in res_admin.reply.lower()
+    assert "sistema café" in res_admin.reply.lower()
+    assert "no puedo responder" in res_admin.reply.lower()
+
+    res_barista = await agent.process_message("Escribeme un script en python para ordenar listas", client_id="offtopic_barista", user_role="ROLE_BARISTA")
+    assert res_barista.tool_used is None
+    assert "def " not in res_barista.reply.lower()
+    assert "asistente de barra" in res_barista.reply.lower()
+    assert "no puedo responder" in res_barista.reply.lower()
+
+    res_customer = await agent.process_message("Cual es la capital de Francia", client_id="offtopic_customer", user_role="ROLE_CUSTOMER")
+    assert res_customer.tool_used is None
+    assert "parís" not in res_customer.reply.lower()
+    assert "paris" not in res_customer.reply.lower()
+    assert "no puedo responder" in res_customer.reply.lower()
+
+    res_joke = await agent.process_message("Dame un chiste", client_id="offtopic_joke", user_role="ROLE_CUSTOMER")
+    assert res_joke.tool_used is None
+    assert "no puedo responder" in res_joke.reply.lower()
