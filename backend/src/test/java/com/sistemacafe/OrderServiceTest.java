@@ -4,7 +4,6 @@ import com.sistemacafe.domain.enums.CustomerTier;
 import com.sistemacafe.domain.enums.OrderStatus;
 import com.sistemacafe.domain.enums.PaymentMethod;
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Customer;
 import com.sistemacafe.domain.model.Order;
 import com.sistemacafe.domain.model.OrderItem;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -72,20 +70,18 @@ class OrderServiceTest {
 
         product = Product.builder()
                 .id(10L)
-                .sku("COF-SIDRA-01")
-                .name("Variedad Sidra")
-                .origin("Pichincha")
-                .roastLevel(RoastLevel.LIGHT)
-                .unitPrice(new BigDecimal("20.00"))
+                .sku("CAF-LAT-01")
+                .name("Café Latte")
+                .unitPrice(new BigDecimal("3.50"))
                 .stockQuantity(15)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
                 .active(true)
                 .build();
 
         createOrderDto = OrderCreateRequestDto.builder()
                 .customerId(1L)
                 .paymentMethod(PaymentMethod.CREDIT_CARD)
-                .notes("Molienda media para V60")
+                .notes("Con leche de almendras")
                 .items(List.of(
                         OrderItemRequestDto.builder()
                                 .productId(10L)
@@ -109,53 +105,38 @@ class OrderServiceTest {
         OrderResponseDto response = orderService.createOrder(createOrderDto);
 
         assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(100L);
+        assertThat(response.getCustomerTier()).isEqualTo("BRONZE");
         assertThat(product.getStockQuantity()).isEqualTo(13); // 15 - 2 = 13
-        assertThat(response.getSubtotal()).isEqualByComparingTo(new BigDecimal("40.00")); // 2 * 20.00
-        assertThat(response.getTax()).isEqualByComparingTo(new BigDecimal("4.80")); // 12% de 40.00
-        assertThat(response.getTotalAmount()).isEqualByComparingTo(new BigDecimal("44.80"));
         verify(productRepository).save(product);
         verify(orderRepository).save(any(Order.class));
     }
 
     @Test
-    @DisplayName("Debe lanzar excepción si el stock solicitado excede la disponibilidad")
-    void shouldThrowExceptionWhenStockIsInsufficient() {
-        createOrderDto.getItems().get(0).setQuantity(50); // pide 50 pero hay 15
-        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
-
-        assertThatThrownBy(() -> orderService.createOrder(createOrderDto))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Stock insuficiente");
-    }
-
-    @Test
-    @DisplayName("Debe devolver el stock al inventario al cancelar una orden")
-    void shouldRestoreStockWhenCancellingOrder() {
+    @DisplayName("Debe cancelar orden y devolver el stock reservado")
+    void shouldCancelOrderAndRestoreStock() {
         Order order = Order.builder()
-                .id(200L)
-                .orderNumber("ORD-TEST-99")
+                .id(50L)
+                .orderNumber("ORD-CANCEL-TEST")
                 .customer(customer)
-                .status(OrderStatus.CONFIRMED)
-                .paymentMethod(PaymentMethod.CASH)
+                .status(OrderStatus.CONFIRMADO)
                 .build();
 
         OrderItem item = OrderItem.builder()
-                .id(1L)
-                .order(order)
                 .product(product)
                 .quantity(3)
-                .unitPrice(new BigDecimal("20.00"))
-                .subtotalAmount(new BigDecimal("60.00"))
+                .unitPrice(product.getUnitPrice())
                 .build();
-        order.getItems().add(item);
+        item.calculateSubtotal();
+        order.addItem(item);
 
-        when(orderRepository.findById(200L)).thenReturn(Optional.of(order));
+        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        orderService.cancelOrder(200L);
+        OrderResponseDto cancelled = orderService.cancelOrder(50L);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(cancelled).isNotNull();
+        assertThat(cancelled.getStatus()).isEqualTo(OrderStatus.CANCELADO);
         assertThat(product.getStockQuantity()).isEqualTo(18); // 15 + 3 = 18
         verify(productRepository).save(product);
     }

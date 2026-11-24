@@ -61,6 +61,13 @@ public class OrderItem implements Serializable {
     @Column(name = "subtotal_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotalAmount;
 
+    public BigDecimal getSubtotalAmount() {
+        if (this.subtotalAmount == null) {
+            calculateSubtotal();
+        }
+        return this.subtotalAmount != null ? this.subtotalAmount : BigDecimal.ZERO;
+    }
+
     public void calculateSubtotal() {
         if (this.unitPrice != null && this.quantity != null) {
             this.subtotalAmount = this.unitPrice.multiply(BigDecimal.valueOf(this.quantity));

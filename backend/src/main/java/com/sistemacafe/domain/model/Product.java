@@ -1,7 +1,6 @@
 package com.sistemacafe.domain.model;
 
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -35,7 +34,6 @@ import java.math.BigDecimal;
     indexes = {
         @Index(name = "idx_products_sku", columnList = "sku"),
         @Index(name = "idx_products_category", columnList = "category"),
-        @Index(name = "idx_products_roast_level", columnList = "roast_level"),
         @Index(name = "idx_products_active", columnList = "active")
     },
     uniqueConstraints = {
@@ -55,27 +53,9 @@ public class Product extends AuditableEntity {
     @Column(name = "name", nullable = false, length = 120)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "origin", nullable = false, length = 100)
-    private String origin;
-
-    @Column(name = "altitude_masl")
-    private Integer altitudeMasl;
-
-    @Column(name = "process_method", length = 50)
-    private String processMethod;
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "roast_level", nullable = false, length = 30)
-    private RoastLevel roastLevel;
-
-    @Column(name = "flavor_notes", columnDefinition = "TEXT")
-    private String flavorNotes;
-
-    @Column(name = "image_url", columnDefinition = "TEXT")
-    private String imageUrl;
+    @Column(name = "category", nullable = false, length = 40)
+    private ProductCategory category;
 
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
@@ -83,13 +63,23 @@ public class Product extends AuditableEntity {
     @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false, length = 40)
-    private ProductCategory category;
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
 
     @Builder.Default
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    public BigDecimal getPrice() {
+        return this.unitPrice;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.unitPrice = price;
+    }
 
     public void reduceStock(int quantity) {
         if (quantity <= 0) {

@@ -1,7 +1,6 @@
 package com.sistemacafe;
 
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Product;
 import com.sistemacafe.domain.repository.ProductRepository;
 import com.sistemacafe.dto.ProductRequestDto;
@@ -47,69 +46,59 @@ class ProductServiceTest {
     void setUp() {
         product = Product.builder()
                 .id(1L)
-                .sku("COF-TYPICA-01")
-                .name("Típica San Roque")
-                .origin("Loja - Gonzanamá")
-                .altitudeMasl(1800)
-                .processMethod("Lavado")
-                .roastLevel(RoastLevel.MEDIUM)
-                .flavorNotes("Naranja, panela, cacao")
-                .unitPrice(new BigDecimal("15.00"))
+                .sku("CAF-CAP-01")
+                .name("Cappuccino Italiano")
+                .description("Espresso doble con leche texturizada y cacao")
+                .unitPrice(new BigDecimal("3.50"))
                 .stockQuantity(30)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
+                .imageUrl("https://images.unsplash.com/photo-1572442388796-11668ba67e53")
                 .active(true)
                 .build();
 
         requestDto = ProductRequestDto.builder()
-                .sku("COF-TYPICA-01")
-                .name("Típica San Roque")
-                .origin("Loja - Gonzanamá")
-                .altitudeMasl(1800)
-                .processMethod("Lavado")
-                .roastLevel(RoastLevel.MEDIUM)
-                .flavorNotes("Naranja, panela, cacao")
-                .unitPrice(new BigDecimal("15.00"))
+                .sku("CAF-CAP-01")
+                .name("Cappuccino Italiano")
+                .description("Espresso doble con leche texturizada y cacao")
+                .unitPrice(new BigDecimal("3.50"))
                 .stockQuantity(30)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
+                .imageUrl("https://images.unsplash.com/photo-1572442388796-11668ba67e53")
                 .active(true)
                 .build();
     }
 
     @Test
-    @DisplayName("Debe registrar producto cuando el SKU es único")
+    @DisplayName("Debe registrar producto de cafetería cuando el SKU es único")
     void shouldCreateProductSuccessfully() {
-        when(productRepository.existsBySku("COF-TYPICA-01")).thenReturn(false);
+        when(productRepository.existsBySku("CAF-CAP-01")).thenReturn(false);
         when(productRepository.save(any(Product.class))).thenReturn(product);
 
         ProductResponseDto response = productService.createProduct(requestDto);
 
         assertThat(response).isNotNull();
-        assertThat(response.getSku()).isEqualTo("COF-TYPICA-01");
+        assertThat(response.getSku()).isEqualTo("CAF-CAP-01");
         verify(productRepository).save(any(Product.class));
     }
 
     @Test
     @DisplayName("Debe resolver enums en español y URLs extensas correctamente")
     void shouldHandleSpanishEnumValuesAndLongImageUrl() {
-        ProductCategory cat = ProductCategory.fromString("ORIGEN_UNICO");
-        RoastLevel roast = RoastLevel.fromString("CLARO");
-        assertThat(cat).isEqualTo(ProductCategory.ESPRESSO_SINGLE_ORIGIN);
-        assertThat(roast).isEqualTo(RoastLevel.LIGHT);
+        ProductCategory cat = ProductCategory.fromString("REPOSTERIA");
+        assertThat(cat).isEqualTo(ProductCategory.REPOSTERIA);
 
         String longGoogleUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc" + "A".repeat(800);
         ProductRequestDto dto = ProductRequestDto.builder()
-                .sku("COF-CUENCA-01")
-                .name("Cafe dos chorreras")
-                .origin("Cuenca")
+                .sku("CAF-CRO-01")
+                .name("Croissant de Mantequilla")
                 .category(cat)
-                .roastLevel(roast)
                 .imageUrl(longGoogleUrl)
-                .unitPrice(new BigDecimal("18.00"))
+                .unitPrice(new BigDecimal("2.50"))
                 .stockQuantity(50)
                 .active(true)
                 .build();
 
-        when(productRepository.existsBySku("COF-CUENCA-01")).thenReturn(false);
+        when(productRepository.existsBySku("CAF-CRO-01")).thenReturn(false);
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
             Product p = invocation.getArgument(0);
             p.setId(99L);
@@ -119,14 +108,13 @@ class ProductServiceTest {
         ProductResponseDto created = productService.createProduct(dto);
         assertThat(created).isNotNull();
         assertThat(created.getImageUrl()).isEqualTo(longGoogleUrl);
-        assertThat(created.getCategory()).isEqualTo(ProductCategory.ESPRESSO_SINGLE_ORIGIN);
-        assertThat(created.getRoastLevel()).isEqualTo(RoastLevel.LIGHT);
+        assertThat(created.getCategory()).isEqualTo(ProductCategory.REPOSTERIA);
     }
 
     @Test
     @DisplayName("Debe lanzar excepción al intentar registrar producto con SKU duplicado")
     void shouldThrowExceptionWhenSkuExists() {
-        when(productRepository.existsBySku("COF-TYPICA-01")).thenReturn(true);
+        when(productRepository.existsBySku("CAF-CAP-01")).thenReturn(true);
 
         assertThatThrownBy(() -> productService.createProduct(requestDto))
                 .isInstanceOf(BusinessRuleException.class)

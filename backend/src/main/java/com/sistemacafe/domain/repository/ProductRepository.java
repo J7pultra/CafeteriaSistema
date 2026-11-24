@@ -1,7 +1,6 @@
 package com.sistemacafe.domain.repository;
 
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,15 +21,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findByCategory(ProductCategory category, Pageable pageable);
 
-    Page<Product> findByRoastLevel(RoastLevel roastLevel, Pageable pageable);
-
     List<Product> findByStockQuantityLessThanEqualAndActiveTrue(Integer threshold);
 
     Page<Product> findByActiveTrue(Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND " +
            "(LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           " LOWER(p.origin) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           " LOWER(p.flavorNotes) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+           " LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           " (p.description IS NOT NULL AND LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     Page<Product> searchProducts(@Param("keyword") String keyword, Pageable pageable);
 }

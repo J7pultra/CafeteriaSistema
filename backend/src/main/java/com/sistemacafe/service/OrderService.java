@@ -60,7 +60,7 @@ public class OrderService {
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .customer(customer)
-                .status(OrderStatus.CONFIRMED)
+                .status(OrderStatus.CONFIRMADO)
                 .paymentMethod(requestDto.getPaymentMethod())
                 .notes(requestDto.getNotes() != null ? requestDto.getNotes().trim() : null)
                 .build();
@@ -73,7 +73,6 @@ public class OrderService {
                 throw new BusinessRuleException("El producto " + product.getName() + " está inactivo en catálogo.");
             }
 
-            // Descuento atómico de inventario
             product.reduceStock(itemDto.getQuantity());
             productRepository.save(product);
 
@@ -89,7 +88,6 @@ public class OrderService {
 
         order.recalculateTotals(DEFAULT_TAX_RATE);
 
-        // Bonificación de puntos de fidelidad (1 punto por cada $ de compra)
         int earnedPoints = order.getTotalAmount().intValue();
         if (earnedPoints > 0) {
             customer.addLoyaltyPoints(earnedPoints);
@@ -165,20 +163,37 @@ public class OrderService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "product_detail", allEntries = true),
+            @CacheEvict(value = "low_stock_products", allEntries = true),
+            @CacheEvict(value = "dashboard_metrics", allEntries = true)
+    })
     public OrderResponseDto updateOrderStatus(Long id, OrderStatus newStatus) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Orden", "id", id));
 
-        if (order.getStatus() == OrderStatus.CANCELLED) {
+        OrderStatus current = order.getStatus();
+        OrderStatus normCurrent = normalizeStatus(current);
+        OrderStatus normNew = normalizeStatus(newStatus);
+
+        if (normCurrent == OrderStatus.CANCELADO) {
             throw new BusinessRuleException("No se puede modificar el estado de una orden cancelada.");
         }
 
-        if (order.getStatus() == OrderStatus.DELIVERED && newStatus != OrderStatus.DELIVERED) {
+        if (normCurrent == OrderStatus.ENTREGADO && normNew != OrderStatus.ENTREGADO) {
             throw new BusinessRuleException("Una orden ya entregada no puede cambiar de estado.");
         }
 
-        if (newStatus == OrderStatus.CANCELLED) {
+        if (normNew == OrderStatus.CANCELADO) {
             return cancelOrderInternal(order);
+        }
+
+        if (!isValidStatusTransition(normCurrent, normNew)) {
+            throw new BusinessRuleException(
+                String.format("Transición de estado no permitida: de %s a %s. El flujo válido es: PENDIENTE -> CONFIRMADO -> EN_PREPARACION -> LISTO -> ENTREGADO",
+                        current, newStatus)
+            );
         }
 
         order.setStatus(newStatus);
@@ -200,22 +215,50 @@ public class OrderService {
     }
 
     private OrderResponseDto cancelOrderInternal(Order order) {
-        if (order.getStatus() == OrderStatus.CANCELLED) {
+        OrderStatus current = normalizeStatus(order.getStatus());
+        if (current == OrderStatus.CANCELADO) {
             throw new BusinessRuleException("La orden ya se encuentra cancelada.");
         }
-        if (order.getStatus() == OrderStatus.DELIVERED) {
+        if (current == OrderStatus.ENTREGADO) {
             throw new BusinessRuleException("No se puede cancelar una orden que ya ha sido entregada.");
         }
 
         // Devolución de stock al inventario
         for (OrderItem item : order.getItems()) {
             Product product = item.getProduct();
-            product.addStock(item.getQuantity());
-            productRepository.save(product);
+            if (product != null) {
+                product.addStock(item.getQuantity());
+                productRepository.save(product);
+            }
         }
 
-        order.setStatus(OrderStatus.CANCELLED);
+        order.setStatus(OrderStatus.CANCELADO);
         Order updated = orderRepository.save(order);
         return orderMapper.toResponseDto(updated);
+    }
+
+    private boolean isValidStatusTransition(OrderStatus current, OrderStatus next) {
+        if (current == next) return true;
+        if (next == OrderStatus.CANCELADO) return true;
+
+        return switch (current) {
+            case PENDIENTE -> next == OrderStatus.CONFIRMADO;
+            case CONFIRMADO -> next == OrderStatus.EN_PREPARACION;
+            case EN_PREPARACION -> next == OrderStatus.LISTO;
+            case LISTO -> next == OrderStatus.ENTREGADO;
+            default -> false;
+        };
+    }
+
+    private OrderStatus normalizeStatus(OrderStatus status) {
+        if (status == null) return OrderStatus.PENDIENTE;
+        return switch (status) {
+            case PENDING, PENDIENTE -> OrderStatus.PENDIENTE;
+            case CONFIRMED, CONFIRMADO -> OrderStatus.CONFIRMADO;
+            case PREPARING, EN_PREPARACION -> OrderStatus.EN_PREPARACION;
+            case READY_FOR_PICKUP, LISTO -> OrderStatus.LISTO;
+            case IN_DELIVERY, DELIVERED, ENTREGADO -> OrderStatus.ENTREGADO;
+            case CANCELLED, CANCELADO -> OrderStatus.CANCELADO;
+        };
     }
 }

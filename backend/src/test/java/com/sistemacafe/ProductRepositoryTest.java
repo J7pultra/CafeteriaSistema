@@ -2,7 +2,6 @@ package com.sistemacafe;
 
 import com.sistemacafe.config.AuditConfig;
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Product;
 import com.sistemacafe.domain.repository.ProductRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -28,20 +27,15 @@ class ProductRepositoryTest {
     private ProductRepository productRepository;
 
     @Test
-    @DisplayName("Debe guardar y recuperar producto de café de especialidad")
+    @DisplayName("Debe guardar y recuperar producto de cafetería")
     void shouldPersistAndRetrieveProduct() {
         Product product = Product.builder()
-                .sku("COF-EC-LOJA-001")
-                .name("Geisha Puyango Honey")
-                .description("Café Geisha cultivado a 1900 msnm con proceso honey")
-                .origin("Loja - Puyango, Ecuador")
-                .altitudeMasl(1900)
-                .processMethod("Honey")
-                .roastLevel(RoastLevel.LIGHT)
-                .flavorNotes("Jazmín, bergamota, miel de azahar y durazno")
-                .unitPrice(new BigDecimal("18.50"))
+                .sku("CAF-CAP-001")
+                .name("Cappuccino Italiano")
+                .description("Espresso doble con leche texturizada y cacao")
+                .unitPrice(new BigDecimal("3.50"))
                 .stockQuantity(45)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
                 .active(true)
                 .build();
 
@@ -51,23 +45,21 @@ class ProductRepositoryTest {
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getCreatedBy()).isEqualTo("SYSTEM");
 
-        Optional<Product> found = productRepository.findBySku("COF-EC-LOJA-001");
+        Optional<Product> found = productRepository.findBySku("CAF-CAP-001");
         assertThat(found).isPresent();
-        assertThat(found.get().getName()).isEqualTo("Geisha Puyango Honey");
-        assertThat(found.get().getRoastLevel()).isEqualTo(RoastLevel.LIGHT);
+        assertThat(found.get().getName()).isEqualTo("Cappuccino Italiano");
+        assertThat(found.get().getCategory()).isEqualTo(ProductCategory.BEBIDAS_CALIENTES);
     }
 
     @Test
     @DisplayName("Debe descontar stock correctamente y lanzar excepción si es insuficiente")
     void shouldReduceStockAndValidateAvailability() {
         Product product = Product.builder()
-                .sku("COF-EC-TYP-002")
-                .name("Típica Mejorado")
-                .origin("Pichincha, Ecuador")
-                .roastLevel(RoastLevel.MEDIUM)
-                .unitPrice(new BigDecimal("14.00"))
+                .sku("CAF-CRO-002")
+                .name("Croissant de Almendras")
+                .unitPrice(new BigDecimal("3.00"))
                 .stockQuantity(10)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.REPOSTERIA)
                 .active(true)
                 .build();
 
@@ -83,24 +75,20 @@ class ProductRepositoryTest {
     @DisplayName("Debe consultar productos con stock bajo el umbral")
     void shouldFindLowStockProducts() {
         Product p1 = Product.builder()
-                .sku("COF-LOW-01")
-                .name("Blend Espresso Tradición")
-                .origin("Loja")
-                .roastLevel(RoastLevel.MEDIUM_DARK)
-                .unitPrice(new BigDecimal("10.00"))
+                .sku("CAF-LOW-01")
+                .name("Matcha Latte Frío")
+                .unitPrice(new BigDecimal("4.50"))
                 .stockQuantity(3)
-                .category(ProductCategory.ESPRESSO_SINGLE_ORIGIN)
+                .category(ProductCategory.BEBIDAS_FRIAS)
                 .active(true)
                 .build();
 
         Product p2 = Product.builder()
-                .sku("COF-HIGH-01")
-                .name("Bourbon Rosado")
-                .origin("Huila")
-                .roastLevel(RoastLevel.LIGHT)
-                .unitPrice(new BigDecimal("22.00"))
+                .sku("CAF-HIGH-01")
+                .name("Tostada Francesa con Miel")
+                .unitPrice(new BigDecimal("6.50"))
                 .stockQuantity(50)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.DESAYUNOS)
                 .active(true)
                 .build();
 
@@ -109,6 +97,6 @@ class ProductRepositoryTest {
 
         List<Product> lowStock = productRepository.findByStockQuantityLessThanEqualAndActiveTrue(5);
         assertThat(lowStock).hasSize(1);
-        assertThat(lowStock.get(0).getSku()).isEqualTo("COF-LOW-01");
+        assertThat(lowStock.get(0).getSku()).isEqualTo("CAF-LOW-01");
     }
 }

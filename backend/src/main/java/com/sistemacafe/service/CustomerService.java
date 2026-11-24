@@ -8,6 +8,7 @@ import com.sistemacafe.exception.BusinessRuleException;
 import com.sistemacafe.exception.ResourceNotFoundException;
 import com.sistemacafe.mapper.CustomerMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ public class CustomerService {
     private final CustomerMapper customerMapper;
 
     @Transactional
+    @CacheEvict(value = "dashboard_metrics", allEntries = true)
     public CustomerResponseDto createCustomer(CustomerRequestDto requestDto) {
         String normalizedEmail = requestDto.getEmail().toLowerCase().trim();
         if (customerRepository.existsByEmail(normalizedEmail)) {
@@ -33,6 +35,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = "dashboard_metrics", allEntries = true)
     public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto requestDto) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", id));
@@ -74,6 +77,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = "dashboard_metrics", allEntries = true)
     public void deactivateCustomer(Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", id));
@@ -82,6 +86,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(value = "dashboard_metrics", allEntries = true)
     public CustomerResponseDto addLoyaltyPoints(Long id, int points) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", id));

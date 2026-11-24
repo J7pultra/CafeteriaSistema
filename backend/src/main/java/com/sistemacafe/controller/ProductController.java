@@ -1,7 +1,6 @@
 package com.sistemacafe.controller;
 
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.dto.ProductRequestDto;
 import com.sistemacafe.dto.ProductResponseDto;
 import com.sistemacafe.dto.ProductStockUpdateDto;
@@ -37,14 +36,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
-@Tag(name = "Productos", description = "Endpoints para la gestión del catálogo de cafés de especialidad e inventario")
+@Tag(name = "Productos", description = "Endpoints para la gestión del catálogo de cafetería e inventario comercial")
 public class ProductController {
 
     private final ProductService productService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARISTA')")
-    @Operation(summary = "Crear nuevo producto de café", description = "Registra una nueva variedad de café con notas de cata y control de inventario")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crear nuevo producto", description = "Registra un nuevo producto de cafetería (exclusivo para Administrador)")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Producto creado con éxito"),
             @ApiResponse(responseCode = "400", description = "Validación de campos fallida"),
@@ -60,28 +59,27 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener producto por ID", description = "Retorna el detalle completo de un café por su identificador primario")
+    @Operation(summary = "Obtener producto por ID", description = "Retorna el detalle completo de un producto por su ID")
     public ResponseEntity<ProductResponseDto> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
     @GetMapping("/sku/{sku}")
-    @Operation(summary = "Obtener producto por SKU", description = "Busca un producto por su código de inventario único")
+    @Operation(summary = "Obtener producto por SKU", description = "Busca un producto por su código SKU de inventario")
     public ResponseEntity<ProductResponseDto> getProductBySku(@PathVariable String sku) {
         return ResponseEntity.ok(productService.getProductBySku(sku));
     }
 
     @GetMapping
-    @Operation(summary = "Listar catálogo de café", description = "Consulta paginada del catálogo con filtros opcionales por categoría y nivel de tueste")
+    @Operation(summary = "Listar catálogo de cafetería", description = "Consulta paginada del catálogo de cafetería con filtro opcional por categoría")
     public ResponseEntity<Page<ProductResponseDto>> getAllProducts(
             @RequestParam(required = false) ProductCategory category,
-            @RequestParam(required = false) RoastLevel roastLevel,
             @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
-        return ResponseEntity.ok(productService.getAllProducts(category, roastLevel, pageable));
+        return ResponseEntity.ok(productService.getAllProducts(category, pageable));
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Buscar café por nombre u origen", description = "Búsqueda predictiva y flexible por origen, variedad o notas sensoriales")
+    @Operation(summary = "Buscar productos", description = "Búsqueda por nombre, SKU o descripción del producto")
     public ResponseEntity<Page<ProductResponseDto>> searchProducts(
             @RequestParam String query,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -90,15 +88,15 @@ public class ProductController {
 
     @GetMapping("/low-stock")
     @PreAuthorize("hasAnyRole('ADMIN', 'BARISTA')")
-    @Operation(summary = "Productos con stock crítico", description = "Lista productos cuyo inventario está por debajo del umbral de alerta")
+    @Operation(summary = "Productos con stock bajo", description = "Lista productos cuyo inventario está por debajo del umbral de alerta (default 10 unidades)")
     public ResponseEntity<List<ProductResponseDto>> getLowStockProducts(
             @Parameter(description = "Umbral opcional", example = "10") @RequestParam(required = false) Integer threshold) {
         return ResponseEntity.ok(productService.getLowStockProducts(threshold));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARISTA')")
-    @Operation(summary = "Actualizar información de producto", description = "Modifica características, precio, notas y detalles del café")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar información de producto", description = "Modifica características, precio, categoría y stock del producto (exclusivo Administrador)")
     public ResponseEntity<ProductResponseDto> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody ProductRequestDto requestDto) {
@@ -116,7 +114,7 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Desactivar producto", description = "Desactiva el producto del catálogo comercial")
+    @Operation(summary = "Desactivar producto", description = "Desactiva el producto del catálogo comercial (exclusivo Administrador)")
     public ResponseEntity<Void> deactivateProduct(@PathVariable Long id) {
         productService.deactivateProduct(id);
         return ResponseEntity.noContent().build();

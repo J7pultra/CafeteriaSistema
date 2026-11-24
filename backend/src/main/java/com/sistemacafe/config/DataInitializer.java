@@ -7,6 +7,7 @@ import com.sistemacafe.domain.repository.RoleRepository;
 import com.sistemacafe.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,29 +17,45 @@ import java.util.Set;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    public DataInitializer(RoleRepository roleRepository,
+                           UserRepository userRepository,
+                           PasswordEncoder passwordEncoder) {
+        this.roleRepository = roleRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Value("${app.security.admin.username:admin}")
+    private String adminUsername;
+
+    @Value("${app.security.admin.email:admin@sistemacafe.com}")
+    private String adminEmail;
+
+    @Value("${app.security.admin.password:admin123}")
+    private String adminPassword;
+
     @Override
     @Transactional
     public void run(String... args) {
-        log.info("Verificando inicialización de datos del Sistema de Café...");
+        log.info("Inicializando configuración de seguridad y roles en el Sistema de Cafetería...");
 
-        // 1. Inicializar Roles
+        // 1. Inicializar Roles del Sistema exclusivamente
         Role adminRole = roleRepository.findByName(RoleType.ROLE_ADMIN).orElseGet(() ->
                 roleRepository.save(Role.builder()
                         .name(RoleType.ROLE_ADMIN)
-                        .description("Administrador del sistema de café")
+                        .description("Administrador del sistema de cafetería")
                         .build()));
 
         Role baristaRole = roleRepository.findByName(RoleType.ROLE_BARISTA).orElseGet(() ->
                 roleRepository.save(Role.builder()
                         .name(RoleType.ROLE_BARISTA)
-                        .description("Barista y operador de pedidos")
+                        .description("Barista y operador de pedidos y comandas")
                         .build()));
 
         Role customerRole = roleRepository.findByName(RoleType.ROLE_CUSTOMER).orElseGet(() ->
@@ -47,18 +64,19 @@ public class DataInitializer implements CommandLineRunner {
                         .description("Cliente registrado en el programa de lealtad")
                         .build()));
 
-        // 2. Inicializar Usuarios
-        if (!userRepository.existsByUsername("admin")) {
+        // 2. Inicializar Usuario Administrador (parametrizado por variables de entorno)
+        if (!userRepository.existsByUsername(adminUsername)) {
             userRepository.save(User.builder()
-                    .username("admin")
-                    .email("admin@sistemacafe.com")
-                    .password(passwordEncoder.encode("admin123"))
+                    .username(adminUsername)
+                    .email(adminEmail)
+                    .password(passwordEncoder.encode(adminPassword))
                     .roles(Set.of(adminRole))
                     .enabled(true)
                     .build());
-            log.info("Usuario 'admin' creado exitosamente con contraseña 'admin123'.");
+            log.info("Usuario administrador inicial '{}' configurado desde variables de entorno.", adminUsername);
         }
 
+        // 3. Inicializar Usuario Barista de Operaciones
         if (!userRepository.existsByUsername("barista")) {
             userRepository.save(User.builder()
                     .username("barista")
@@ -67,21 +85,10 @@ public class DataInitializer implements CommandLineRunner {
                     .roles(Set.of(baristaRole))
                     .enabled(true)
                     .build());
-            log.info("Usuario 'barista' creado exitosamente con contraseña 'barista123'.");
+            log.info("Usuario barista inicial 'barista' configurado para operaciones.");
         }
 
-        if (!userRepository.existsByUsername("cliente_carlos")) {
-            userRepository.save(User.builder()
-                    .username("cliente_carlos")
-                    .email("carlos.mendoza@example.com")
-                    .password(passwordEncoder.encode("cliente123"))
-                    .roles(Set.of(customerRole))
-                    .enabled(true)
-                    .build());
-            log.info("Usuario 'cliente_carlos' creado exitosamente.");
-        }
-
-        // Catálogo de Café y Clientes se gestionan exclusivamente mediante CRUD real
-        log.info("Inicialización de seguridad y roles completada.");
+        // Cero seeders ni datos ficticios insertados. El entorno inicia limpio para producción.
+        log.info("Inicialización de seguridad completada con éxito. Catálogo y órdenes limpios.");
     }
 }

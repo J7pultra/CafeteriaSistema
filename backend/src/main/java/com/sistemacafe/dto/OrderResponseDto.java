@@ -1,5 +1,6 @@
 package com.sistemacafe.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sistemacafe.domain.enums.OrderStatus;
 import com.sistemacafe.domain.enums.PaymentMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,7 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Detalle completo de respuesta de la orden de café")
+@Schema(description = "Detalle completo de respuesta de la orden de cafetería")
 public class OrderResponseDto {
 
     @Schema(example = "1")
@@ -36,38 +37,44 @@ public class OrderResponseDto {
     @Schema(example = "carlos.valdez@cafespecialty.com")
     private String customerEmail;
 
-    @Schema(example = "CONFIRMED")
+    @Schema(example = "BRONZE", description = "Nivel de lealtad del cliente (BRONZE, SILVER, GOLD, PLATINUM)")
+    private String customerTier;
+
+    @Schema(example = "CONFIRMADO")
     private OrderStatus status;
 
     @Schema(example = "CREDIT_CARD")
     private PaymentMethod paymentMethod;
 
-    @Schema(example = "37.00")
+    @Schema(example = "12.50")
     private BigDecimal subtotal;
 
-    @Schema(example = "4.44")
+    @Schema(example = "1.50")
     private BigDecimal tax;
 
     @Schema(example = "0.00")
     private BigDecimal discount;
 
-    @Schema(example = "41.44")
+    @Schema(example = "14.00")
     private BigDecimal totalAmount;
 
-    @com.fasterxml.jackson.annotation.JsonProperty("total")
+    @Schema(example = "7", description = "Puntos de fidelización ganados en esta orden")
+    private Integer loyaltyPointsEarned;
+
+    @JsonProperty("total")
     public BigDecimal getTotal() {
         return totalAmount != null ? totalAmount : BigDecimal.ZERO;
     }
 
-    @Schema(example = "Favor enviar con molienda fina")
+    @Schema(example = "Sin azúcar, leche deslactosada")
     private String notes;
 
     @Schema(description = "Items de la orden")
     private List<OrderItemResponseDto> items;
 
-    @Schema(example = "2026-11-16T10:00:00")
+    @Schema(example = "2026-11-24T10:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(example = "2026-11-16T10:00:00")
+    @Schema(example = "2026-11-24T10:00:00")
     private LocalDateTime updatedAt;
 }

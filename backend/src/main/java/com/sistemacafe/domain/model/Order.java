@@ -114,7 +114,7 @@ public class Order extends AuditableEntity {
 
     public void recalculateTotals(BigDecimal taxRate) {
         BigDecimal sumSubtotal = items.stream()
-                .map(OrderItem::getSubtotalAmount)
+                .map(item -> item != null && item.getSubtotalAmount() != null ? item.getSubtotalAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         this.subtotal = sumSubtotal.setScale(2, RoundingMode.HALF_UP);

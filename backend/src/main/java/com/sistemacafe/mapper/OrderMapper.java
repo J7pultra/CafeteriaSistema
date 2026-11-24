@@ -20,18 +20,27 @@ public class OrderMapper {
                 ? order.getItems().stream().map(this::toItemResponseDto).collect(Collectors.toList())
                 : Collections.emptyList();
 
+        String tier = "BRONZE";
+        if (order.getCustomer() != null && order.getCustomer().getTier() != null) {
+            tier = order.getCustomer().getTier().name();
+        }
+
+        int earnedPoints = order.getTotalAmount() != null ? order.getTotalAmount().intValue() : 0;
+
         return OrderResponseDto.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .customerId(order.getCustomer() != null ? order.getCustomer().getId() : null)
                 .customerName(order.getCustomer() != null ? order.getCustomer().getFullName() : null)
                 .customerEmail(order.getCustomer() != null ? order.getCustomer().getEmail() : null)
+                .customerTier(tier)
                 .status(order.getStatus())
                 .paymentMethod(order.getPaymentMethod())
                 .subtotal(order.getSubtotal())
                 .tax(order.getTax())
                 .discount(order.getDiscount())
                 .totalAmount(order.getTotalAmount())
+                .loyaltyPointsEarned(earnedPoints)
                 .notes(order.getNotes())
                 .items(itemDtos)
                 .createdAt(order.getCreatedAt())

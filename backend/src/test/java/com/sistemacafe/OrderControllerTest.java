@@ -79,7 +79,7 @@ class OrderControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(100))
                 .andExpect(jsonPath("$.orderNumber").value("ORD-8F3A29B1"))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.status").value("CONFIRMADO"))
                 .andExpect(jsonPath("$.totalAmount").value(33.60));
     }
 

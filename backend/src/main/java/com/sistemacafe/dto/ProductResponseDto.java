@@ -1,7 +1,7 @@
 package com.sistemacafe.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,53 +17,38 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Detalle completo de respuesta del producto de café")
+@Schema(description = "Detalle completo de respuesta del producto de cafetería")
 public class ProductResponseDto {
 
     @Schema(example = "1")
     private Long id;
 
-    @Schema(example = "COF-EC-LOJA-001")
+    @Schema(example = "CAF-HOT-001")
     private String sku;
 
-    @Schema(example = "Geisha Puyango Honey Especial")
+    @Schema(example = "Cappuccino Italiano")
     private String name;
 
-    @Schema(example = "Café cultivado a 1900 msnm con proceso Honey y fermentación anaeróbica")
+    @Schema(example = "Espresso doble con leche texturizada y fino toque de cacao en polvo")
     private String description;
 
-    @Schema(example = "Loja - Puyango, Ecuador")
-    private String origin;
+    @Schema(example = "BEBIDAS_CALIENTES")
+    private ProductCategory category;
 
-    @Schema(example = "1900")
-    private Integer altitudeMasl;
-
-    @Schema(example = "Honey")
-    private String processMethod;
-
-    @Schema(example = "LIGHT")
-    private RoastLevel roastLevel;
-
-    @Schema(example = "Jazmín, flor de café, bergamota, melocotón y miel de azahar")
-    private String flavorNotes;
-
-    @Schema(example = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e")
-    private String imageUrl;
-
-    @Schema(example = "18.50")
-    @com.fasterxml.jackson.annotation.JsonProperty("unitPrice")
+    @Schema(example = "3.50")
+    @JsonProperty("unitPrice")
     private BigDecimal unitPrice;
 
-    @com.fasterxml.jackson.annotation.JsonProperty("price")
+    @JsonProperty("price")
     public BigDecimal getPrice() {
         return this.unitPrice;
     }
 
-    @Schema(example = "50")
+    @Schema(example = "45")
     private Integer stockQuantity;
 
-    @Schema(example = "SPECIALTY_BEANS")
-    private ProductCategory category;
+    @Schema(example = "https://images.unsplash.com/photo-1572442388796-11668ba67e53")
+    private String imageUrl;
 
     @Schema(example = "true")
     private boolean active;
@@ -71,9 +56,9 @@ public class ProductResponseDto {
     @Schema(example = "false")
     private boolean lowStock;
 
-    @Schema(example = "2026-11-16T10:00:00")
+    @Schema(example = "2026-11-24T10:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(example = "2026-11-16T10:00:00")
+    @Schema(example = "2026-11-24T10:00:00")
     private LocalDateTime updatedAt;
 }

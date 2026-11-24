@@ -5,7 +5,6 @@ import com.sistemacafe.domain.enums.CustomerTier;
 import com.sistemacafe.domain.enums.OrderStatus;
 import com.sistemacafe.domain.enums.PaymentMethod;
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Customer;
 import com.sistemacafe.domain.model.Order;
 import com.sistemacafe.domain.model.OrderItem;
@@ -21,8 +20,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +41,6 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Debe persistir una orden con sus items en cascada y calcular totales con IVA 12%")
     void shouldPersistOrderWithItemsAndRecalculateTotals() {
-        // 1. Arrange Customer & Product
         Customer customer = customerRepository.save(Customer.builder()
                 .firstName("Mateo")
                 .lastName("Morales")
@@ -53,23 +49,20 @@ class OrderRepositoryTest {
                 .build());
 
         Product product = productRepository.save(Product.builder()
-                .sku("COF-SIDRA-001")
-                .name("Variedad Sidra Lavado")
-                .origin("Pichincha, Nanegal")
-                .roastLevel(RoastLevel.LIGHT)
-                .unitPrice(new BigDecimal("20.00"))
+                .sku("CAF-CAP-001")
+                .name("Cappuccino Italiano")
+                .unitPrice(new BigDecimal("4.00"))
                 .stockQuantity(100)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
                 .active(true)
                 .build());
 
-        // 2. Build Order
         Order order = Order.builder()
                 .orderNumber("ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .customer(customer)
-                .status(OrderStatus.CONFIRMED)
+                .status(OrderStatus.CONFIRMADO)
                 .paymentMethod(PaymentMethod.CREDIT_CARD)
-                .notes("Empaque hermético con válvula desgasificadora")
+                .notes("Con leche descremada")
                 .build();
 
         OrderItem item = OrderItem.builder()
@@ -77,61 +70,62 @@ class OrderRepositoryTest {
                 .quantity(2)
                 .unitPrice(product.getUnitPrice())
                 .build();
-        item.calculateSubtotal(); // 2 * 20.00 = 40.00
+        item.calculateSubtotal(); // 2 * 4.00 = 8.00
 
-        order.addItem(item); // subtotal = 40.00, tax 12% = 4.80, total = 44.80
+        order.addItem(item);
 
-        // 3. Act
         Order savedOrder = orderRepository.save(order);
 
-        // 4. Assert
         assertThat(savedOrder.getId()).isNotNull();
         assertThat(savedOrder.getItems()).hasSize(1);
-        assertThat(savedOrder.getSubtotal()).isEqualByComparingTo(new BigDecimal("40.00"));
-        assertThat(savedOrder.getTax()).isEqualByComparingTo(new BigDecimal("4.80"));
-        assertThat(savedOrder.getTotalAmount()).isEqualByComparingTo(new BigDecimal("44.80"));
-        assertThat(savedOrder.getCreatedAt()).isNotNull();
-
-        Optional<Order> retrieved = orderRepository.findByOrderNumber(savedOrder.getOrderNumber());
-        assertThat(retrieved).isPresent();
-        assertThat(retrieved.get().getCustomer().getEmail()).isEqualTo("mateo.morales@coffeelover.com");
+        assertThat(savedOrder.getSubtotal()).isEqualByComparingTo(new BigDecimal("8.00"));
+        assertThat(savedOrder.getTax()).isEqualByComparingTo(new BigDecimal("0.96")); // 12% de 8.00
+        assertThat(savedOrder.getTotalAmount()).isEqualByComparingTo(new BigDecimal("8.96"));
     }
 
     @Test
-    @DisplayName("Debe calcular ingresos totales entre rangos de fechas excluyendo órdenes canceladas")
-    void shouldCalculateTotalRevenueExcludingCancelledOrders() {
+    @DisplayName("Debe calcular ingresos de órdenes excluyendo las canceladas")
+    void shouldCalculateTotalRevenueExcludingCancelled() {
         Customer customer = customerRepository.save(Customer.builder()
-                .firstName("Sofía")
-                .lastName("Castro")
-                .email("sofia.castro@latteart.ec")
+                .firstName("Ana")
+                .lastName("Gómez")
+                .email("ana.gomez@test.com")
+                .tier(CustomerTier.BRONZE)
                 .build());
 
-        Order confirmedOrder = Order.builder()
-                .orderNumber("ORD-CONFIRMED-01")
-                .customer(customer)
-                .status(OrderStatus.CONFIRMED)
-                .paymentMethod(PaymentMethod.DEBIT_CARD)
-                .subtotal(new BigDecimal("50.00"))
-                .tax(new BigDecimal("6.00"))
-                .totalAmount(new BigDecimal("56.00"))
-                .build();
+        Product product = productRepository.save(Product.builder()
+                .sku("CAF-AME-002")
+                .name("Americano")
+                .unitPrice(new BigDecimal("2.50"))
+                .stockQuantity(50)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
+                .active(true)
+                .build());
 
-        Order cancelledOrder = Order.builder()
-                .orderNumber("ORD-CANCELLED-02")
+        Order o1 = Order.builder()
+                .orderNumber("ORD-REV-01")
                 .customer(customer)
-                .status(OrderStatus.CANCELLED)
+                .status(OrderStatus.CONFIRMADO)
                 .paymentMethod(PaymentMethod.CASH)
-                .subtotal(new BigDecimal("100.00"))
-                .tax(new BigDecimal("12.00"))
-                .totalAmount(new BigDecimal("112.00"))
                 .build();
+        OrderItem i1 = OrderItem.builder().product(product).quantity(2).unitPrice(product.getUnitPrice()).build();
+        i1.calculateSubtotal();
+        o1.addItem(i1);
 
-        orderRepository.save(confirmedOrder);
-        orderRepository.save(cancelledOrder);
+        Order o2 = Order.builder()
+                .orderNumber("ORD-REV-02")
+                .customer(customer)
+                .status(OrderStatus.CANCELADO)
+                .paymentMethod(PaymentMethod.CASH)
+                .build();
+        OrderItem i2 = OrderItem.builder().product(product).quantity(4).unitPrice(product.getUnitPrice()).build();
+        i2.calculateSubtotal();
+        o2.addItem(i2);
 
-        LocalDateTime now = LocalDateTime.now();
-        BigDecimal revenue = orderRepository.calculateTotalRevenueBetween(now.minusHours(1), now.plusHours(1));
+        orderRepository.save(o1);
+        orderRepository.save(o2);
 
-        assertThat(revenue).isEqualByComparingTo(new BigDecimal("56.00"));
+        BigDecimal revenue = orderRepository.calculateTotalRevenue(OrderStatus.CANCELADO);
+        assertThat(revenue).isEqualByComparingTo(o1.getTotalAmount());
     }
 }

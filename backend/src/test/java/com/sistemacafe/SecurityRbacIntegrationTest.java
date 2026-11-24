@@ -2,7 +2,6 @@ package com.sistemacafe;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.dto.DashboardMetricDto;
 import com.sistemacafe.dto.ProductRequestDto;
 import com.sistemacafe.dto.ProductResponseDto;
@@ -68,7 +67,7 @@ class SecurityRbacIntegrationTest {
     @Test
     @DisplayName("GET /api/v1/products público debe retornar 200 OK sin autenticación")
     void shouldAllowPublicAccessToProductCatalog() throws Exception {
-        when(productService.getAllProducts(any(), any(), any()))
+        when(productService.getAllProducts(any(), any()))
                 .thenReturn(new PageImpl<>(Collections.emptyList(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/api/v1/products"))
@@ -82,11 +81,9 @@ class SecurityRbacIntegrationTest {
         ProductRequestDto request = ProductRequestDto.builder()
                 .sku("COF-DENIED-01")
                 .name("Café Prohibido")
-                .origin("Loja")
-                .roastLevel(RoastLevel.LIGHT)
                 .unitPrice(new BigDecimal("15.00"))
                 .stockQuantity(10)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
                 .build();
 
         mockMvc.perform(post("/api/v1/products")
@@ -104,11 +101,9 @@ class SecurityRbacIntegrationTest {
         ProductRequestDto request = ProductRequestDto.builder()
                 .sku("COF-ALLOWED-01")
                 .name("Café Permitido")
-                .origin("Loja")
-                .roastLevel(RoastLevel.LIGHT)
                 .unitPrice(new BigDecimal("15.00"))
                 .stockQuantity(10)
-                .category(ProductCategory.SPECIALTY_BEANS)
+                .category(ProductCategory.BEBIDAS_CALIENTES)
                 .build();
 
         ProductResponseDto response = ProductResponseDto.builder()

@@ -1,7 +1,6 @@
 package com.sistemacafe.service;
 
 import com.sistemacafe.domain.enums.ProductCategory;
-import com.sistemacafe.domain.enums.RoastLevel;
 import com.sistemacafe.domain.model.Product;
 import com.sistemacafe.domain.repository.ProductRepository;
 import com.sistemacafe.dto.ProductRequestDto;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,9 +38,18 @@ public class ProductService {
             @CacheEvict(value = "dashboard_metrics", allEntries = true)
     })
     public ProductResponseDto createProduct(ProductRequestDto requestDto) {
-        String normalizedSku = requestDto.getSku().toUpperCase().trim();
-        if (productRepository.existsBySku(normalizedSku)) {
-            throw new BusinessRuleException("Ya existe un producto registrado con el SKU: " + normalizedSku);
+        if (requestDto.getSku() != null && !requestDto.getSku().isBlank()) {
+            String normalizedSku = requestDto.getSku().toUpperCase().trim();
+            if (productRepository.existsBySku(normalizedSku)) {
+                throw new BusinessRuleException("Ya existe un producto registrado con el SKU: " + normalizedSku);
+            }
+            requestDto.setSku(normalizedSku);
+        } else {
+            String autoSku = "PRD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            while (productRepository.existsBySku(autoSku)) {
+                autoSku = "PRD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            }
+            requestDto.setSku(autoSku);
         }
 
         Product product = productMapper.toEntity(requestDto);
@@ -51,7 +60,7 @@ public class ProductService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "product_detail", key = "'id:' + #id"),
-            @CacheEvict(value = "product_detail", key = "'sku:' + #requestDto.sku.toUpperCase().trim()"),
+            @CacheEvict(value = "product_detail", key = "'sku:' + #requestDto.sku != null ? #requestDto.sku.toUpperCase().trim() : ''"),
             @CacheEvict(value = "products", allEntries = true),
             @CacheEvict(value = "low_stock_products", allEntries = true),
             @CacheEvict(value = "dashboard_metrics", allEntries = true)
@@ -60,9 +69,11 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto", "id", id));
 
-        String normalizedSku = requestDto.getSku().toUpperCase().trim();
-        if (!product.getSku().equalsIgnoreCase(normalizedSku) && productRepository.existsBySku(normalizedSku)) {
-            throw new BusinessRuleException("El SKU " + normalizedSku + " ya pertenece a otro producto en catálogo.");
+        if (requestDto.getSku() != null && !requestDto.getSku().isBlank()) {
+            String normalizedSku = requestDto.getSku().toUpperCase().trim();
+            if (!product.getSku().equalsIgnoreCase(normalizedSku) && productRepository.existsBySku(normalizedSku)) {
+                throw new BusinessRuleException("El SKU " + normalizedSku + " ya pertenece a otro producto en catálogo.");
+            }
         }
 
         productMapper.updateEntityFromDto(product, requestDto);
@@ -87,12 +98,9 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductResponseDto> getAllProducts(ProductCategory category, RoastLevel roastLevel, Pageable pageable) {
+    public Page<ProductResponseDto> getAllProducts(ProductCategory category, Pageable pageable) {
         if (category != null) {
             return productRepository.findByCategory(category, pageable).map(productMapper::toResponseDto);
-        }
-        if (roastLevel != null) {
-            return productRepository.findByRoastLevel(roastLevel, pageable).map(productMapper::toResponseDto);
         }
         return productRepository.findByActiveTrue(pageable).map(productMapper::toResponseDto);
     }
