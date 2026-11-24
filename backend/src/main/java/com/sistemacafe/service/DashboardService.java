@@ -44,8 +44,11 @@ public class DashboardService {
         LocalDateTime oneWeekAgo = now.minusDays(7);
 
         // 1. Ingresos reales no cancelados
-        BigDecimal totalRevenue = orderRepository.calculateTotalRevenue(OrderStatus.CANCELADO);
-        BigDecimal weeklyRevenue = orderRepository.calculateTotalRevenueBetween(OrderStatus.CANCELADO, oneWeekAgo, now);
+        BigDecimal totalRev = orderRepository.calculateTotalRevenue(OrderStatus.CANCELADO);
+        BigDecimal totalRevenue = totalRev != null ? totalRev : BigDecimal.ZERO;
+
+        BigDecimal weeklyRev = orderRepository.calculateTotalRevenueBetween(OrderStatus.CANCELADO, oneWeekAgo, now);
+        BigDecimal weeklyRevenue = weeklyRev != null ? weeklyRev : BigDecimal.ZERO;
 
         // 2. Conteo de órdenes y desglose por estado
         long totalOrders = orderRepository.count();
@@ -98,7 +101,9 @@ public class DashboardService {
             for (Object[] row : categorySales) {
                 if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
                     ProductCategory cat = (ProductCategory) row[0];
-                    BigDecimal amount = (BigDecimal) row[1];
+                    BigDecimal amount = row[1] instanceof BigDecimal
+                            ? (BigDecimal) row[1]
+                            : new BigDecimal(row[1].toString());
                     salesByCategory.put(cat.name(), amount);
                 }
             }
@@ -112,10 +117,12 @@ public class DashboardService {
             List<Object[]> topRows = orderItemRepository.findTopSellingProducts(OrderStatus.CANCELADO, PageRequest.of(0, 5));
             for (Object[] row : topRows) {
                 if (row != null && row.length >= 4) {
-                    Long prodId = (Long) row[0];
-                    String prodName = (String) row[1];
-                    Long qty = (Long) row[2];
-                    BigDecimal rev = (BigDecimal) row[3];
+                    Long prodId = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+                    String prodName = row[1] != null ? row[1].toString() : "";
+                    Long qty = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+                    BigDecimal rev = row[3] instanceof BigDecimal
+                            ? (BigDecimal) row[3]
+                            : (row[3] != null ? new BigDecimal(row[3].toString()) : BigDecimal.ZERO);
                     topSelling.add(TopProductDto.builder()
                             .productId(prodId)
                             .name(prodName)

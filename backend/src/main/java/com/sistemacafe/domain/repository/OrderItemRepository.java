@@ -15,7 +15,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     List<OrderItem> findByOrderId(Long orderId);
     List<OrderItem> findByProductId(Long productId);
 
-    @Query("SELECT oi.product.category, COALESCE(SUM(oi.subtotalAmount), 0) " +
+    @Query("SELECT oi.product.category, SUM(oi.subtotalAmount) " +
            "FROM OrderItem oi WHERE oi.order.status != :cancelledStatus " +
            "GROUP BY oi.product.category")
     List<Object[]> sumSalesByCategory(@Param("cancelledStatus") OrderStatus cancelledStatus);

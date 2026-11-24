@@ -29,13 +29,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findOrdersBetween(@Param("startDate") LocalDateTime startDate,
                                   @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.status != :cancelledStatus " +
+    @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.status != :cancelledStatus " +
            "AND o.createdAt >= :startDate AND o.createdAt <= :endDate")
     BigDecimal calculateTotalRevenueBetween(@Param("cancelledStatus") OrderStatus cancelledStatus,
                                             @Param("startDate") LocalDateTime startDate,
                                             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.status != :cancelledStatus")
+    @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.status != :cancelledStatus")
     BigDecimal calculateTotalRevenue(@Param("cancelledStatus") OrderStatus cancelledStatus);
 
     long countByStatus(OrderStatus status);
