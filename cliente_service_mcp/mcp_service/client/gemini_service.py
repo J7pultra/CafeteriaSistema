@@ -5,6 +5,8 @@ Provides deterministic tool execution + 100% natural AI responses with Zero-Slop
 
 import json
 import logging
+import re
+import time
 import urllib.request
 import urllib.error
 from typing import Any, Dict, List, Optional, Tuple
@@ -368,6 +370,167 @@ async def fetch_live_catalog_products() -> List[Dict[str, Any]]:
     return []
 
 
+def query_gemini_with_fallback(
+    payload: Dict[str, Any],
+    api_key: str,
+    preferred_model: Optional[str] = None,
+    timeout: float = 20.0,
+    max_retries: int = 2,
+) -> Optional[Dict[str, Any]]:
+    """
+    Sends request to Gemini API with model fallback and exponential backoff retry.
+    Tries preferred model first, then falls back to healthy alternatives.
+    """
+    models_to_try: List[str] = []
+    if preferred_model:
+        models_to_try.append(preferred_model)
+    # Default candidate chain
+    for m in ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-2.5-flash"]:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    for model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json; charset=utf-8"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    return data
+            except urllib.error.HTTPError as http_err:
+                code = http_err.code
+                logger.warning(f"Gemini API HTTP {code} on {model} (attempt {attempt+1}/{max_retries}): {http_err.reason}")
+                if code in (429, 503, 500, 504):
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                break
+            except Exception as exc:
+                logger.warning(f"Gemini network error on {model} (attempt {attempt+1}/{max_retries}): {exc}")
+                time.sleep(0.5)
+
+    logger.error("All Gemini models and retries exhausted.")
+    return None
+
+
+def emergency_local_sommelier_fallback(
+    user_prompt: str,
+    live_products: List[Dict[str, Any]],
+    cart_context: str,
+) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]], Optional[str], Optional[Dict[str, Any]]]:
+    """
+    Intelligent local sommelier engine when external Gemini API is unreachable.
+    Guarantees zero downtime, zero dead-ends, and performs deterministic UI actions.
+    """
+    p_lower = user_prompt.lower().strip()
+
+    # 1. Navigation / Checkout intent
+    checkout_triggers = [
+        "revisemos", "revisar", "ver mi orden", "ver orden", "ver carrito", "mi carrito",
+        "ir a pagar", "vamos a pagar", "quiero pagar", "procedamos a revisar", "finalizar compra",
+        "pagar", "comprar todo", "cuanto llevo"
+    ]
+    if any(t in p_lower for t in checkout_triggers):
+        reply = "¡Por supuesto! Te llevo de inmediato a la sección de tu carrito para que revises tu selección y procedas con el pago cuando gustes."
+        ui_act = {"type": "NAVIGATE", "route": "/carritocliente", "delayMs": 0}
+        return (reply, [], [ui_act], "navigate_ui", {"route": "/carritocliente"})
+
+    # 2. My Orders navigation
+    orders_triggers = ["mis pedidos", "mis compras", "ver pedidos", "historial de pedidos", "pedidos realizados"]
+    if any(t in p_lower for t in orders_triggers):
+        reply = "¡Con gusto! Te llevo a tu historial de pedidos para que consultes tus compras anteriores y el estado de cada una."
+        ui_act = {"type": "NAVIGATE", "route": "/my-orders", "delayMs": 0}
+        return (reply, [], [ui_act], "navigate_ui", {"route": "/my-orders"})
+
+    # 3. Add to cart intent
+    add_triggers = ["agrega", "añade", "anade", "agregar", "añadir", "quiero comprar", "pon", "llevar", "dame un", "dame una", "adicionar"]
+    if any(t in p_lower for t in add_triggers):
+        matched_product = None
+        best_score = 0
+        for p in live_products:
+            p_name = (p.get("name") or p.get("nombre") or "").lower()
+            p_tokens = [tok for tok in re.split(r"\s+", p_name) if len(tok) > 2]
+            score = sum(1 for tok in p_tokens if tok in p_lower)
+            if score > best_score:
+                best_score = score
+                matched_product = p
+
+        if not matched_product and live_products:
+            matched_product = live_products[0]
+
+        if matched_product:
+            pid = matched_product.get("id")
+            p_name = matched_product.get("name") or matched_product.get("nombre") or "Café de Especialidad"
+            p_price = float(matched_product.get("price") or matched_product.get("precio") or matched_product.get("unitPrice") or 0.0)
+            
+            qty = 1
+            num_match = re.search(r"\b(\d+)\b", p_lower)
+            if num_match:
+                qty = max(1, int(num_match.group(1)))
+            elif "dos" in p_lower:
+                qty = 2
+            elif "tres" in p_lower:
+                qty = 3
+
+            ui_act = {
+                "type": "HIGHLIGHT_ELEMENT",
+                "targetId": f"product-card-{pid}",
+                "animation": "pulse-glow",
+                "badgeText": "¡Añadido al carrito!",
+                "durationMs": 4000,
+            }
+            tool_data = {
+                "productId": pid,
+                "productName": p_name,
+                "quantity": qty,
+                "price": p_price,
+            }
+            reply = f"¡Listo! He agregado {qty} bolsa(s) de {p_name} a tu carrito de compras (${p_price * qty:.2f} USD).\n\n¿Te gustaría revisar tu pedido en /carritocliente o deseas que te recomiende algún otro café de especialidad?"
+            return (reply, [{"tool": "add_to_cart", "result": "success"}], [ui_act], "add_to_cart", tool_data)
+
+    # 4. Search / Filter intent
+    search_triggers = ["busca", "buscar", "filtra", "filtrar", "chocolate", "frutal", "citrico", "floral", "caramelo", "jazmin"]
+    for s_kw in search_triggers:
+        if s_kw in p_lower:
+            ui_act = {"type": "TYPE_AND_SEARCH", "query": s_kw, "delayMs": 0}
+            reply = f"¡Enseguida! He filtrado en la vitrina los cafés relacionados con '{s_kw}' para que explores sus notas de cata y origen en pantalla."
+            return (reply, [], [ui_act], "search_catalog", {"query": s_kw})
+
+    # 5. Greeting / Help / Capabilities
+    greeting_triggers = ["hola", "buenas", "buenos dias", "buenas tardes", "que puedes hacer", "ayuda", "quien eres", "asesor"]
+    if any(t in p_lower for t in greeting_triggers):
+        reply = (
+            "¡Hola! Soy tu Sommelier AI en **Sistema Café**. Estoy aquí para asesorarte en la selección de los mejores cafés de especialidad:\n\n"
+            "- **Explorar y recomendar cafés:** Dime qué sabores buscas (notas florales, cítricas, cacao amargo o caramelo).\n"
+            "- **Agregar al carrito:** Puedo añadir los cafés directamente a tu compra.\n"
+            "- **Revisar pedidos:** Te llevo a ver tu carrito (`/carritocliente`) o tu historial de pedidos (`/my-orders`).\n"
+            "- **Recetas de extracción:** Te comparto ratios y tiempos para V60, Chemex, Aeropress y Espresso.\n\n"
+            "¿Qué café te gustaría probar o preparar hoy?"
+        )
+        return (reply, [], [], None, None)
+
+    # 6. Recommendation request
+    rec_triggers = ["recomiendame", "recomendar", "que me recomiendas", "opciones", "catalogo", "sugiereme"]
+    if any(t in p_lower for t in rec_triggers):
+        rec_lines = []
+        for p in live_products[:3]:
+            name = p.get("name") or "Café de Especialidad"
+            notes = p.get("flavorNotes") or "Perfil equilibrado"
+            price = float(p.get("price") or 0.0)
+            rec_lines.append(f"- **{name}** (${price:.2f} USD): {notes}")
+        recs_text = "\n".join(rec_lines) if rec_lines else "- Café Geisha Boquete y Bourbon Rosado Huila."
+        reply = f"Tenemos excelentes opciones en el catálogo actual:\n\n{recs_text}\n\n¿Te llama la atención alguno en particular para agregarlo a tu carrito?"
+        return (reply, [], [], None, None)
+
+    # Default fallback
+    reply = "Soy tu Sommelier AI. Cuéntame qué perfil de notas de cata o método de preparación prefieres y con gusto te oriento en nuestra selección."
+    return (reply, [], [], None, None)
+
+
 async def execute_gemini_agent_loop(
     user_prompt: str,
     user_role: Optional[str],
@@ -444,8 +607,7 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
 
     contents.append({"role": "user", "parts": [{"text": user_prompt}]})
 
-    model_name = getattr(settings, "GEMINI_MODEL", "gemini-flash-lite-latest")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     payload_phase1 = {
         "system_instruction": {"parts": [{"text": system_instruction}]},
@@ -454,18 +616,15 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         "generationConfig": {"temperature": 0.0, "maxOutputTokens": 600},
     }
 
-    try:
-        req1 = urllib.request.Request(
-            url,
-            data=json.dumps(payload_phase1).encode("utf-8"),
-            headers={"Content-Type": "application/json; charset=utf-8"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req1, timeout=12.0) as resp1:
-            res1 = json.loads(resp1.read().decode("utf-8"))
-    except Exception as exc:
-        logger.error(f"Error in Gemini Phase 1: {exc}")
-        return ("Disculpa, tuve un inconveniente temporal comunicándome con el modelo de IA.", [], [], None, None)
+    res1 = query_gemini_with_fallback(
+        payload=payload_phase1,
+        api_key=api_key,
+        preferred_model=model_name,
+        timeout=20.0,
+    )
+    if not res1 or not res1.get("candidates"):
+        logger.warning(f"Gemini API unavailable for Phase 1. Activating emergency local sommelier fallback for: {user_prompt!r}")
+        return emergency_local_sommelier_fallback(user_prompt, live_products, cart_context)
 
     candidates = res1.get("candidates", [])
     if not candidates:
@@ -1059,22 +1218,22 @@ CATÁLOGO REAL EN TIEMPO REAL (PostgreSQL):
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
     }
 
-    try:
-        req2 = urllib.request.Request(
-            url,
-            data=json.dumps(payload_phase2).encode("utf-8"),
-            headers={"Content-Type": "application/json; charset=utf-8"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req2, timeout=12.0) as resp2:
-            res2 = json.loads(resp2.read().decode("utf-8"))
+    res2 = query_gemini_with_fallback(
+        payload=payload_phase2,
+        api_key=api_key,
+        preferred_model=model_name,
+        timeout=20.0,
+    )
+    if res2 and res2.get("candidates"):
+        try:
             final_reply = res2["candidates"][0]["content"]["parts"][0]["text"].strip()
             return (final_reply, tool_results, ui_actions, tool_used, tool_data)
-    except Exception as exc:
-        logger.error(f"Error in Gemini Phase 2: {exc}")
-        # Graceful fallback if Phase 2 network drops
-        fallback = function_responses[0]["response"].get("message") if function_responses else "Operación ejecutada exitosamente."
-        return (fallback, tool_results, ui_actions, tool_used, tool_data)
+        except Exception:
+            pass
+
+    # Graceful fallback if Phase 2 network drops
+    fallback = function_responses[0]["response"].get("message") if function_responses else "Operación ejecutada exitosamente."
+    return (fallback, tool_results, ui_actions, tool_used, tool_data)
 
 
 def call_gemini(
@@ -1090,7 +1249,7 @@ def call_gemini(
     if not api_key:
         return None
 
-    model = getattr(settings, "GEMINI_MODEL", "gemini-flash-lite-latest")
+    model = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
     system_instruction = get_system_prompt_for_role(user_role)
     if current_cart:
         cart_lines = [
@@ -1119,17 +1278,15 @@ def call_gemini(
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
     }
 
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json; charset=utf-8"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except Exception as exc:
-        logger.warning(f"Fallback call_gemini failed: {exc}")
-        return None
+    res = query_gemini_with_fallback(
+        payload=payload,
+        api_key=api_key,
+        preferred_model=model,
+        timeout=timeout_seconds,
+    )
+    if res and res.get("candidates"):
+        try:
+            return res["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception:
+            pass
+    return None

@@ -176,9 +176,9 @@ def classify_user_intent(user_message: str, user_role: str = "ROLE_CUSTOMER") ->
         return extract_intent_fallback(user_message, user_role)
 
     models_to_try = [
+        "gemini-3.5-flash-lite",
         "gemini-flash-lite-latest",
-        "gemini-flash-latest",
-        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash",
     ]
 
     payload = {
