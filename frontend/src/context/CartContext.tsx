@@ -96,11 +96,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   )
 
-  // Reset cart whenever account changes or registers/logs out so no previous cart leaks
+  // Reset guest cart on explicit logout so previous user items never leak
   useEffect(() => {
-    const handleAuthReset = () => {
+    const handleAuthLogout = () => {
       try {
         localStorage.removeItem(LEGACY_CART_STORAGE_KEY)
+        localStorage.removeItem('coffee_cart:guest')
       } catch {
         // ignore
       }
@@ -108,11 +109,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCart([])
     }
 
-    window.addEventListener('auth:register', handleAuthReset)
-    window.addEventListener('auth:logout', handleAuthReset)
+    window.addEventListener('auth:logout', handleAuthLogout)
     return () => {
-      window.removeEventListener('auth:register', handleAuthReset)
-      window.removeEventListener('auth:logout', handleAuthReset)
+      window.removeEventListener('auth:logout', handleAuthLogout)
     }
   }, [])
 

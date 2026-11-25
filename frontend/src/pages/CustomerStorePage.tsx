@@ -158,7 +158,7 @@ export const CustomerStorePage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {customer ? (
+            {customer && (
               <div
                 style={{
                   display: 'flex',
@@ -189,20 +189,6 @@ export const CustomerStorePage: React.FC = () => {
                     {discountRate > 0 ? `${discountRate * 100}% Descuento` : 'Estándar'}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  padding: '8px 14px',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 500,
-                }}
-              >
-                Compra Libre (Sin cuenta requerida)
               </div>
             )}
 

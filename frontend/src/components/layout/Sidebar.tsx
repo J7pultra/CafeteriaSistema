@@ -5,6 +5,7 @@ import {
   Coffee,
   ShoppingCart,
   Users,
+  UserCheck,
   LogOut,
   Coffee as CoffeeIcon,
   ShoppingBag,
@@ -59,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       { to: '/catalog', label: 'Productos', icon: <Coffee size={18} /> },
       { to: '/orders', label: 'Pedidos y POS', icon: <ShoppingCart size={18} /> },
       { to: '/customers', label: 'Clientes', icon: <Users size={18} /> },
+      { to: '/baristas', label: 'Baristas', icon: <UserCheck size={18} /> },
       { to: '/chat', label: 'Asistente', icon: <MessageSquare size={18} /> },
     ]
   } else if (isBarista) {

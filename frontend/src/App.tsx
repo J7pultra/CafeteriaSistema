@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import CatalogPage from './pages/CatalogPage'
 import OrdersPage from './pages/OrdersPage'
 import CustomersPage from './pages/CustomersPage'
+import BaristasPage from './pages/BaristasPage'
 import CustomerStorePage from './pages/CustomerStorePage'
 import CustomerOrdersPage from './pages/CustomerOrdersPage'
 import CustomerCartPage from './pages/CustomerCartPage'
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="ROLE_ADMIN" />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/baristas" element={<BaristasPage />} />
             </Route>
           </Route>
 

@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Coffee, Lock, User, Mail, ArrowRight, UserPlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Alert from '../components/common/Alert'
 
 export const LoginPage: React.FC = () => {
-  const [isRegister, setIsRegister] = useState(false)
+  const [searchParams] = useSearchParams()
+  const redirectTarget = searchParams.get('redirect')
+  const [isRegister, setIsRegister] = useState(searchParams.get('mode') === 'register')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,6 +16,8 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { login, register } = useAuth()
   const navigate = useNavigate()
+
+  const safeRedirect = redirectTarget && redirectTarget.startsWith('/') ? redirectTarget : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,10 +33,14 @@ export const LoginPage: React.FC = () => {
           return
         }
         await register({ username, email, password })
-        setSuccess('¡Cuenta de cliente creada exitosamente! Redirigiendo...')
+        setSuccess(
+          safeRedirect === '/carritocliente'
+            ? '¡Cuenta creada! Tu carrito está listo para facturar...'
+            : '¡Cuenta de cliente creada exitosamente! Redirigiendo...'
+        )
         setTimeout(() => {
-          navigate('/store')
-        }, 800)
+          navigate(safeRedirect || '/store')
+        }, 700)
       } else {
         const res = await login({ username, password })
         const roles = res?.roles || []
@@ -41,7 +49,7 @@ export const LoginPage: React.FC = () => {
         } else if (roles.includes('ROLE_BARISTA')) {
           navigate('/orders')
         } else {
-          navigate('/store')
+          navigate(safeRedirect || '/store')
         }
       }
     } catch (err: any) {
@@ -193,6 +201,12 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
+        {safeRedirect === '/carritocliente' && (
+          <Alert
+            type="info"
+            message="Tu carrito se conservará automáticamente al crear tu cuenta o iniciar sesión para completar la facturación."
+          />
+        )}
         {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
         {success && <Alert type="success" message={success} onClose={() => setSuccess(null)} />}
 

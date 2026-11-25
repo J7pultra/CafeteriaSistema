@@ -38,7 +38,8 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    @Operation(summary = "Checkout público para visitantes sin registro previo", description = "Permite a clientes realizar compras como invitados y registra automáticamente sus datos")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BARISTA', 'CUSTOMER')")
+    @Operation(summary = "Checkout de compra para cuenta autenticada", description = "Procesa pedidos de usuarios autenticados y crea automáticamente su perfil de fidelización si es su primera compra")
     public ResponseEntity<OrderResponseDto> guestCheckout(@Valid @RequestBody com.sistemacafe.dto.GuestCheckoutRequestDto requestDto) {
         OrderResponseDto created = orderService.processGuestCheckout(requestDto);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()

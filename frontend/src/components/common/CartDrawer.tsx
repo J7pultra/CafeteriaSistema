@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight, Coffee } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 
 export const CartDrawer: React.FC = () => {
+  const { isAuthenticated } = useAuth()
   const {
     cart,
     isCartOpen,
@@ -47,7 +49,11 @@ export const CartDrawer: React.FC = () => {
     window.setTimeout(() => {
       setIsClosing(false)
       closeCart()
-      navigate('/carritocliente')
+      if (!isAuthenticated) {
+        navigate('/login?redirect=/carritocliente&mode=register')
+      } else {
+        navigate('/carritocliente')
+      }
     }, 180)
   }
 
@@ -283,6 +289,23 @@ export const CartDrawer: React.FC = () => {
               <span>Total</span>
               <span style={{ color: 'var(--accent-gold)' }}>${grandTotal.toFixed(2)} USD</span>
             </div>
+
+            {!isAuthenticated && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: 'var(--accent-gold)',
+                  backgroundColor: 'rgba(212, 163, 115, 0.08)',
+                  border: '1px solid var(--border-gold)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '8px 10px',
+                  marginBottom: '12px',
+                  textAlign: 'center',
+                }}
+              >
+                Necesitas una cuenta para confirmar y facturar. Tu carrito se guardará al ingresar.
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button

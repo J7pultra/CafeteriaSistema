@@ -30,7 +30,7 @@ const TIER_DISCOUNTS: Record<CustomerTier, number> = {
 }
 
 export const CustomerCartPage: React.FC = () => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart()
   const navigate = useNavigate()
 
@@ -278,6 +278,68 @@ export const CustomerCartPage: React.FC = () => {
             <Coffee size={18} />
             <span>Explorar Menú</span>
           </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Requerir cuenta antes de facturar para evitar pedidos falsos
+  if (!isAuthenticated) {
+    return (
+      <div style={{ maxWidth: '700px', margin: '60px auto', padding: '0 20px', textAlign: 'center' }}>
+        <div
+          className="card page-transition-enter"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-gold)',
+            borderRadius: 'var(--radius-md)',
+            padding: '48px 28px',
+          }}
+        >
+          <div
+            className="float-slow"
+            style={{
+              width: '76px',
+              height: '76px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(212, 163, 115, 0.12)',
+              border: '1px solid var(--border-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+              color: 'var(--accent-gold)',
+            }}
+          >
+            <ShieldCheck size={36} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '10px', color: 'var(--text-primary)' }}>
+            Crea una cuenta o inicia sesión para facturar
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.94rem', maxWidth: '470px', margin: '0 auto 26px', lineHeight: 1.5 }}>
+            Para evitar pedidos falsos y proteger tu orden, necesitas una cuenta verificada antes de completar el pago. Tu carrito con{' '}
+            <strong style={{ color: 'var(--accent-gold)' }}>
+              {cart.reduce((acc, i) => acc + i.quantity, 0)} producto(s)
+            </strong>{' '}
+            se conservará automáticamente al ingresar.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <Link
+              to="/login?redirect=/carritocliente&mode=register"
+              className="btn btn-primary"
+              data-testid="checkout-register-btn"
+            >
+              <span>Crear Cuenta y Facturar</span>
+              <ArrowRight size={16} />
+            </Link>
+            <Link
+              to="/login?redirect=/carritocliente"
+              className="btn btn-secondary"
+              data-testid="checkout-login-btn"
+            >
+              <span>Ya tengo cuenta — Iniciar Sesión</span>
+            </Link>
+          </div>
         </div>
       </div>
     )

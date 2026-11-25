@@ -18,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (path.startsWith('/catalog')) return hasRole('ROLE_ADMIN') ? 'Productos' : 'Disponibilidad'
     if (path.startsWith('/orders')) return 'Pedidos y POS'
     if (path.startsWith('/customers')) return 'Clientes'
+    if (path.startsWith('/baristas')) return 'Personal Barista'
     if (path.startsWith('/chat')) return 'Asistente'
     if (path.startsWith('/store') || path === '/') return 'Menú'
     if (path.startsWith('/carritocliente')) return 'Mi Carrito'

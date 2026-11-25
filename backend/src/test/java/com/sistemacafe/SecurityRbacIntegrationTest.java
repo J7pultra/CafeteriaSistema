@@ -2,13 +2,16 @@ package com.sistemacafe;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistemacafe.domain.enums.ProductCategory;
+import com.sistemacafe.dto.BaristaCreateRequestDto;
 import com.sistemacafe.dto.DashboardMetricDto;
 import com.sistemacafe.dto.ProductRequestDto;
 import com.sistemacafe.dto.ProductResponseDto;
+import com.sistemacafe.dto.StaffUserResponseDto;
 import com.sistemacafe.service.CustomerService;
 import com.sistemacafe.service.DashboardService;
 import com.sistemacafe.service.OrderService;
 import com.sistemacafe.service.ProductService;
+import com.sistemacafe.service.UserManagementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +57,9 @@ class SecurityRbacIntegrationTest {
 
     @MockBean
     private DashboardService dashboardService;
+
+    @MockBean
+    private UserManagementService userManagementService;
 
     @Test
     @DisplayName("GET /api/v1/customers sin autenticación debe retornar 401 Unauthorized")
@@ -148,5 +154,57 @@ class SecurityRbacIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalRevenueWeek").value(2500.00))
                 .andExpect(jsonPath("$.totalOrdersWeek").value(60));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/orders/checkout sin autenticación debe retornar 401 Unauthorized")
+    void shouldRejectAnonymousCheckout() throws Exception {
+        mockMvc.perform(post("/api/v1/orders/checkout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "cliente_standard", roles = {"CUSTOMER"})
+    @DisplayName("POST /api/v1/users/baristas con rol CUSTOMER debe retornar 403 Forbidden")
+    void shouldDenyBaristaCreationForCustomer() throws Exception {
+        BaristaCreateRequestDto request = BaristaCreateRequestDto.builder()
+                .username("nuevo_barista")
+                .email("nuevo@barista.com")
+                .password("Password123!")
+                .build();
+
+        mockMvc.perform(post("/api/v1/users/baristas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin_user", roles = {"ADMIN"})
+    @DisplayName("POST /api/v1/users/baristas con rol ADMIN debe retornar 201 Created")
+    void shouldAllowBaristaCreationForAdmin() throws Exception {
+        BaristaCreateRequestDto request = BaristaCreateRequestDto.builder()
+                .username("nuevo_barista")
+                .email("nuevo@barista.com")
+                .password("Password123!")
+                .build();
+
+        StaffUserResponseDto response = StaffUserResponseDto.builder()
+                .id(12L)
+                .username("nuevo_barista")
+                .email("nuevo@barista.com")
+                .enabled(true)
+                .roles(java.util.List.of("ROLE_BARISTA"))
+                .build();
+
+        when(userManagementService.createBarista(any(BaristaCreateRequestDto.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/users/baristas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.username").value("nuevo_barista"));
     }
 }

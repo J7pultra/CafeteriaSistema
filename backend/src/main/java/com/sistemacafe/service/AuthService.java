@@ -86,24 +86,15 @@ public class AuthService {
             throw new BusinessRuleException("El correo electrónico '" + email + "' ya se encuentra registrado.");
         }
 
+        // El registro público siempre asigna exclusivamente ROLE_CUSTOMER.
+        // Los baristas solo pueden ser registrados por un Administrador desde /api/v1/users/baristas.
         Set<Role> userRoles = new HashSet<>();
-        if (registerRequest.getRoles() != null && !registerRequest.getRoles().isEmpty()) {
-            for (RoleType roleType : registerRequest.getRoles()) {
-                Role role = roleRepository.findByName(roleType)
-                        .orElseGet(() -> roleRepository.save(Role.builder()
-                                .name(roleType)
-                                .description("Rol " + roleType.name())
-                                .build()));
-                userRoles.add(role);
-            }
-        } else {
-            Role defaultRole = roleRepository.findByName(RoleType.ROLE_CUSTOMER)
-                    .orElseGet(() -> roleRepository.save(Role.builder()
-                            .name(RoleType.ROLE_CUSTOMER)
-                            .description("Rol predeterminado de cliente")
-                            .build()));
-            userRoles.add(defaultRole);
-        }
+        Role defaultRole = roleRepository.findByName(RoleType.ROLE_CUSTOMER)
+                .orElseGet(() -> roleRepository.save(Role.builder()
+                        .name(RoleType.ROLE_CUSTOMER)
+                        .description("Rol predeterminado de cliente")
+                        .build()));
+        userRoles.add(defaultRole);
 
         User user = User.builder()
                 .username(username)
