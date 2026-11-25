@@ -14,7 +14,7 @@ import useSommelierActionDispatcher from '../../hooks/useSommelierActionDispatch
 export const FloatingChatWidget: React.FC = () => {
   const location = useLocation()
   const { user } = useAuth()
-  const { cart, addToCart } = useCart()
+  const { cart, addToCart, isCartOpen } = useCart()
   const [isOpen, setIsOpen] = useState(false)
   const { dispatchActions, isExecuting, statusMessage } = useSommelierActionDispatcher()
 
@@ -176,7 +176,7 @@ export const FloatingChatWidget: React.FC = () => {
     ])
   }
 
-  if (location.pathname === '/chat') {
+  if (location.pathname === '/chat' || isCartOpen) {
     return null
   }
 
@@ -186,7 +186,7 @@ export const FloatingChatWidget: React.FC = () => {
         position: 'fixed',
         bottom: '24px',
         right: '24px',
-        zIndex: 9999,
+        zIndex: 95,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',

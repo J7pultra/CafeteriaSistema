@@ -187,11 +187,7 @@ export const Layout: React.FC = () => {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
       <div className="main-content">
-        <Navbar
-          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
-          onToggleDesktopSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
-          isSidebarCollapsed={isSidebarCollapsed}
-        />
+        <Navbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
         <main className="page-container">
           <div key={location.pathname} className="page-transition-enter">
             <Outlet />

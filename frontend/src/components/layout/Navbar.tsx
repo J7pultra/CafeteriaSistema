@@ -1,18 +1,14 @@
 import React from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { User as UserIcon, Menu, PanelLeft } from 'lucide-react'
+import { User as UserIcon, Menu } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 interface NavbarProps {
   onOpenMobileMenu?: () => void
-  onToggleDesktopSidebar?: () => void
-  isSidebarCollapsed?: boolean
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenMobileMenu,
-  onToggleDesktopSidebar,
-  isSidebarCollapsed = false,
 }) => {
   const { user, hasRole } = useAuth()
   const location = useLocation()
@@ -49,27 +45,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Abrir menú lateral"
           >
             <Menu size={18} />
-          </button>
-        )}
-
-        {onToggleDesktopSidebar && (
-          <button
-            type="button"
-            onClick={onToggleDesktopSidebar}
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '5px 8px' }}
-            title={isSidebarCollapsed ? 'Mostrar menú lateral completo' : 'Contraer menú lateral'}
-            aria-label="Alternar barra lateral"
-            data-testid="navbar-sidebar-toggle"
-          >
-            <PanelLeft
-              size={16}
-              style={{
-                color: isSidebarCollapsed ? 'var(--accent-gold)' : 'var(--text-secondary)',
-                transition: 'color 0.2s ease, transform 0.25s ease',
-                transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}
-            />
           </button>
         )}
 

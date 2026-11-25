@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { AuthContext } from './AuthContext'
 
 export interface CartProduct {
   id: number
@@ -40,20 +41,29 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-const CART_STORAGE_KEY = 'coffee_cart'
+const LEGACY_CART_STORAGE_KEY = 'coffee_cart'
+const getCartStorageKey = (username?: string | null): string =>
+  username ? `coffee_cart:${username}` : 'coffee_cart:guest'
+
+const readStoredCart = (storageKey: string): CartItem[] => {
+  try {
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return Array.isArray(parsed) ? parsed : []
+    }
+  } catch {
+    // ignore JSON parse error
+  }
+  return []
+}
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY)
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    } catch {
-      // ignore JSON parse error
-    }
-    return []
-  })
+  const authCtx = useContext(AuthContext)
+  const storageKey = getCartStorageKey(authCtx?.user?.username)
+  const loadedKeyRef = useRef<string>(storageKey)
+
+  const [cart, setCart] = useState<CartItem[]>(() => readStoredCart(storageKey))
 
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [lastAddedAt, setLastAddedAt] = useState<number>(0)
@@ -86,14 +96,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   )
 
-  // Persist cart to localStorage
+  // Reset cart whenever account changes or registers/logs out so no previous cart leaks
   useEffect(() => {
+    const handleAuthReset = () => {
+      try {
+        localStorage.removeItem(LEGACY_CART_STORAGE_KEY)
+      } catch {
+        // ignore
+      }
+      setIsCartOpen(false)
+      setCart([])
+    }
+
+    window.addEventListener('auth:register', handleAuthReset)
+    window.addEventListener('auth:logout', handleAuthReset)
+    return () => {
+      window.removeEventListener('auth:register', handleAuthReset)
+      window.removeEventListener('auth:logout', handleAuthReset)
+    }
+  }, [])
+
+  // Persist cart to account-scoped localStorage, or switch cart cleanly when account changes
+  useEffect(() => {
+    if (loadedKeyRef.current !== storageKey) {
+      loadedKeyRef.current = storageKey
+      setIsCartOpen(false)
+      setCart(readStoredCart(storageKey))
+      return
+    }
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart))
+      localStorage.setItem(storageKey, JSON.stringify(cart))
     } catch {
       // storage unavailable
     }
-  }, [cart])
+  }, [cart, storageKey])
 
   const openCart = useCallback(() => setIsCartOpen(true), [])
   const closeCart = useCallback(() => setIsCartOpen(false), [])

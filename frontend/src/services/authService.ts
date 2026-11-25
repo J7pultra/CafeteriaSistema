@@ -15,6 +15,8 @@ export const authService = {
       'coffee_user',
       JSON.stringify({ username, roles, email: `${username}@sistemacafe.com` })
     )
+    localStorage.removeItem('coffee_cart')
+    window.dispatchEvent(new CustomEvent('auth:login', { detail: { username } }))
     return response.data
   },
 
@@ -27,6 +29,9 @@ export const authService = {
       'coffee_user',
       JSON.stringify({ username, roles, email: data.email })
     )
+    localStorage.removeItem('coffee_cart')
+    localStorage.removeItem(`coffee_cart:${username}`)
+    window.dispatchEvent(new CustomEvent('auth:register', { detail: { username } }))
     return response.data
   },
 
@@ -34,6 +39,7 @@ export const authService = {
     localStorage.removeItem('coffee_access_token')
     localStorage.removeItem('coffee_refresh_token')
     localStorage.removeItem('coffee_user')
+    localStorage.removeItem('coffee_cart')
     window.dispatchEvent(new Event('auth:logout'))
   },
 
